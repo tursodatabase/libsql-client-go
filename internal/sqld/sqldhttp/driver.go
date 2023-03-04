@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-
-	sqldhttp "github.com/libsql/libsql-client-go/internal/sqld/http"
 )
 
 type sqldResult struct {
@@ -24,7 +22,7 @@ func (r *sqldResult) RowsAffected() (int64, error) {
 }
 
 type sqldRows struct {
-	result        *sqldhttp.ResultSet
+	result        *ResultSet
 	currentRowIdx int
 }
 
@@ -68,9 +66,9 @@ func (c *sqldConn) Begin() (driver.Tx, error) {
 	return nil, fmt.Errorf("Begin method not implemented")
 }
 
-func convertArgs(args []driver.NamedValue) sqldhttp.Params {
+func convertArgs(args []driver.NamedValue) Params {
 	if len(args) == 0 {
-		return sqldhttp.Params{}
+		return Params{}
 	}
 	sortedArgs := [](*driver.NamedValue){}
 	for idx := range args {
@@ -87,11 +85,11 @@ func convertArgs(args []driver.NamedValue) sqldhttp.Params {
 		}
 		values = append(values, sortedArgs[idx].Value)
 	}
-	return sqldhttp.Params{Names: names, Values: values}
+	return Params{Names: names, Values: values}
 }
 
 func (c *sqldConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	_, err := sqldhttp.CallSqld(c.url, query, convertArgs(args))
+	_, err := CallSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +97,7 @@ func (c *sqldConn) ExecContext(ctx context.Context, query string, args []driver.
 }
 
 func (c *sqldConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	rs, err := sqldhttp.CallSqld(c.url, query, convertArgs(args))
+	rs, err := CallSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
