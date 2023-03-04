@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	sqlddriver "github.com/libsql/libsql-client-go/internal/sqld/sqldhttp"
+	"github.com/libsql/libsql-client-go/internal/sqld/sqldhttp"
 	"github.com/mattn/go-sqlite3"
 )
 
@@ -16,7 +16,7 @@ func (d *LibsqlDriver) Open(dbPath string) (driver.Conn, error) {
 	if strings.HasPrefix(dbPath, "file:") {
 		return (&sqlite3.SQLiteDriver{}).Open(dbPath)
 	}
-	return sqlddriver.SqldConnect(dbPath), nil
+	return sqldhttp.SqldConnect(dbPath), nil
 }
 
 func init() {
