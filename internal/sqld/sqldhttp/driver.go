@@ -1,4 +1,4 @@
-package sqlddriver
+package sqldhttp
 
 import (
 	"context"

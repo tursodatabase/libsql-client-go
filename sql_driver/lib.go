@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	sqlddriver "github.com/libsql/libsql-client-go/internal/sqld/sqldriver"
+	sqlddriver "github.com/libsql/libsql-client-go/internal/sqld/sqldhttp"
 	"github.com/mattn/go-sqlite3"
 )
 
