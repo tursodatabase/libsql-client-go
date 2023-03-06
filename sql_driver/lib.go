@@ -25,9 +25,6 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
 		jwt := os.Getenv("SQLD_AUTH_TOKEN")
-		if len(jwt) == 0 {
-			return nil, fmt.Errorf("missing authorization token. Please provide JWT by setting SQLD_AUTH_TOKEN env variable")
-		}
 		return sqldwebsockets.SqldConnect(dbUrl, jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
