@@ -15,21 +15,21 @@ import (
 type LibsqlDriver struct {
 }
 
-func (d *LibsqlDriver) Open(dbPath string) (driver.Conn, error) {
-	if strings.HasPrefix(dbPath, "file:") {
-		return (&sqlite3.SQLiteDriver{}).Open(dbPath)
+func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
+	if strings.HasPrefix(dbUrl, "file:") {
+		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
 	}
-	if strings.HasPrefix(dbPath, "wss://") {
+	if strings.HasPrefix(dbUrl, "wss://") {
 		jwt := os.Getenv("SQLD_AUTH_TOKEN")
 		if len(jwt) == 0 {
 			return nil, fmt.Errorf("missing authorization token. Please provide JWT by setting SQLD_AUTH_TOKEN env variable")
 		}
-		return sqldwebsockets.SqldConnect(dbPath, jwt)
+		return sqldwebsockets.SqldConnect(dbUrl, jwt)
 	}
-	if strings.HasPrefix(dbPath, "https://") {
-		return sqldhttp.SqldConnect(dbPath), nil
+	if strings.HasPrefix(dbUrl, "https://") {
+		return sqldhttp.SqldConnect(dbUrl), nil
 	}
-	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with file://, https:// or wss://", dbPath)
+	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with file://, https:// or wss://", dbUrl)
 }
 
 func init() {
