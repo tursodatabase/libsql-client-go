@@ -207,8 +207,7 @@ func Connect(url string, jwt string) (*SqldWebsocket, error) {
 		c.Close(websocket.StatusInternalError, err.Error())
 		return nil, err
 	}
-	if isErrorResp(helloResp) {
-
+	if helloResp.(map[string]interface{})["type"] == "hello_error" {
 		err = fmt.Errorf("handshake error: %s", errorMsg(helloResp))
 		c.Close(websocket.StatusProtocolError, err.Error())
 		return nil, err
