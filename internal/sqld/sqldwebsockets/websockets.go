@@ -103,7 +103,7 @@ func (r *ExecResponse) Value(rowIdx int, colIdx int) (any, error) {
 	case "float":
 		return val["value"].(float64), nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("unrecognized value type: %s", val["type"])
 }
 
 func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecResponse, error) {
