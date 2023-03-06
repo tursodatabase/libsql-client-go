@@ -78,22 +78,23 @@ func convertArgs(args []driver.NamedValue) Params {
 	if len(args) == 0 {
 		return Params{}
 	}
-	sortedArgs := [](*driver.NamedValue){}
+	positionalArgs := [](*driver.NamedValue){}
+	namedArgs := []NamedParam{}
 	for idx := range args {
-		sortedArgs = append(sortedArgs, &args[idx])
-	}
-	sort.Slice(sortedArgs, func(i, j int) bool {
-		return sortedArgs[i].Ordinal < sortedArgs[j].Ordinal
-	})
-	names := [](string){}
-	values := [](any){}
-	for idx := range sortedArgs {
-		if len(sortedArgs[idx].Name) > 0 {
-			names = append(names, sortedArgs[idx].Name)
+		if len(args[idx].Name) > 0 {
+			namedArgs = append(namedArgs, NamedParam{args[idx].Name, args[idx].Value})
+		} else {
+			positionalArgs = append(positionalArgs, &args[idx])
 		}
-		values = append(values, sortedArgs[idx].Value)
 	}
-	return Params{Names: names, Values: values}
+	sort.Slice(positionalArgs, func(i, j int) bool {
+		return positionalArgs[i].Ordinal < positionalArgs[j].Ordinal
+	})
+	posArgs := [](any){}
+	for idx := range positionalArgs {
+		posArgs = append(posArgs, positionalArgs[idx].Value)
+	}
+	return Params{PositinalArgs: posArgs, NamedArgs: namedArgs}
 }
 
 func (c *sqldWsConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {

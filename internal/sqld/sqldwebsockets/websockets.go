@@ -24,9 +24,14 @@ type SqldWebsocket struct {
 	idPool *pools.IDPool
 }
 
+type NamedParam struct {
+	Name  string
+	Value any
+}
+
 type Params struct {
-	Names  []string
-	Values []any
+	PositinalArgs []any
+	NamedArgs     []NamedParam
 }
 
 func convertValue(v any) (map[string]interface{}, error) {
@@ -114,31 +119,31 @@ func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecRe
 		"sql":       sql,
 		"want_rows": wantRows,
 	}
-	if len(params.Values) > 0 {
+	if len(params.PositinalArgs) > 0 {
 		args := []map[string]interface{}{}
-		if len(params.Names) == 0 {
-			for idx := range params.Values {
-				v, err := convertValue(params.Values[idx])
-				if err != nil {
-					return nil, err
-				}
-				args = append(args, v)
+		for idx := range params.PositinalArgs {
+			v, err := convertValue(params.PositinalArgs[idx])
+			if err != nil {
+				return nil, err
 			}
-			stmt["args"] = args
-		} else {
-			for idx := range params.Names {
-				v, err := convertValue(params.Values[idx])
-				if err != nil {
-					return nil, err
-				}
-				arg := map[string]interface{}{
-					"name":  params.Names[idx],
-					"value": v,
-				}
-				args = append(args, arg)
-			}
-			stmt["named_args"] = args
+			args = append(args, v)
 		}
+		stmt["args"] = args
+	}
+	if len(params.NamedArgs) > 0 {
+		args := []map[string]interface{}{}
+		for idx := range params.NamedArgs {
+			v, err := convertValue(params.NamedArgs[idx].Value)
+			if err != nil {
+				return nil, err
+			}
+			arg := map[string]interface{}{
+				"name":  params.NamedArgs[idx].Name,
+				"value": v,
+			}
+			args = append(args, arg)
+		}
+		stmt["named_args"] = args
 	}
 	err := wsjson.Write(ctx, ws.conn, map[string]interface{}{
 		"type":       "request",
