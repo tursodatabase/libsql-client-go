@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"net/url"
-	"os"
 
 	"github.com/libsql/libsql-client-go/internal/sqld/sqldhttp"
 	"github.com/libsql/libsql-client-go/internal/sqld/sqldwebsockets"
@@ -24,8 +23,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
-		jwt := os.Getenv("SQLD_AUTH_TOKEN")
-		return sqldwebsockets.SqldConnect(dbUrl, jwt)
+		return sqldwebsockets.SqldConnect(dbUrl, u.Query().Get("jwt"))
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
 		return sqldhttp.SqldConnect(dbUrl), nil
