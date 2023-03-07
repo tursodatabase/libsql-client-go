@@ -37,6 +37,24 @@ func queryConn(conn *sql.Conn, stmt string, args ...any) *sql.Rows {
 	return res
 }
 
+func execTx(tx *sql.Tx, stmt string, args ...any) sql.Result {
+	res, err := tx.Exec(stmt, args...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to execute statement %s: %s", stmt, err)
+		os.Exit(1)
+	}
+	return res
+}
+
+func queryTx(tx *sql.Tx, stmt string, args ...any) *sql.Rows {
+	res, err := tx.Query(stmt, args...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to execute query %s: %s", stmt, err)
+		os.Exit(1)
+	}
+	return res
+}
+
 func runCounterExample(dbPath string) {
 	db, err := sql.Open("libsql", dbPath)
 	if err != nil {
@@ -47,6 +65,7 @@ func runCounterExample(dbPath string) {
 
 	incCounterStatementPositionalArgs := "INSERT INTO counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?"
 	exec(db, incCounterStatementPositionalArgs, "PL", "WAW", "PL", "WAW")
+	exec(db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
 	exec(db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
 	/* Uncomment once https://github.com/libsql/sqld/issues/237 is fixed */
 	// incCounterStatementNamedArgs := "INSERT INTO counter(country, city, value) VALUES(:country, :city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = :country AND city = :city"
@@ -73,6 +92,44 @@ func runCounterExample(dbPath string) {
 	}
 	if err := rows.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "errors from query: %s", err)
+		os.Exit(1)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start a transaction: %s", err)
+		os.Exit(1)
+	}
+	// Defer a rollback in case anything fails.
+	defer tx.Rollback()
+	rows = queryTx(tx, `SELECT * FROM counter WHERE (country = "PL" AND city = "WAW") OR (country = "FI" AND city = "HEL")`)
+	wawValue := -1
+	helValue := -1
+	for rows.Next() {
+		var row struct {
+			country string
+			city    string
+			value   int
+		}
+		if err := rows.Scan(&row.country, &row.city, &row.value); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to scan row: %s", err)
+			os.Exit(1)
+		}
+		if row.country == "PL" && row.city == "WAW" {
+			wawValue = row.value
+		}
+		if row.country == "FI" && row.city == "HEL" {
+			helValue = row.value
+		}
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "errors from query: %s", err)
+		os.Exit(1)
+	}
+	if helValue > wawValue {
+		execTx(tx, `INSERT INTO counter(country, city, value) VALUES("PL", "WAW", ?) ON CONFLICT DO UPDATE SET value = ? WHERE country = "PL" AND city = "WAW"`, helValue, helValue)
+	}
+	if err = tx.Commit(); err != nil {
+		fmt.Fprintf(os.Stderr, "error commiting the transaction: %s", err)
 		os.Exit(1)
 	}
 }
