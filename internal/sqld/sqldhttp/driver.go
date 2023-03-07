@@ -8,33 +8,33 @@ import (
 	"sort"
 )
 
-type sqldResult struct {
+type result struct {
 	id      int64
 	changes int64
 }
 
-func (r *sqldResult) LastInsertId() (int64, error) {
+func (r *result) LastInsertId() (int64, error) {
 	return r.id, nil
 }
 
-func (r *sqldResult) RowsAffected() (int64, error) {
+func (r *result) RowsAffected() (int64, error) {
 	return r.changes, nil
 }
 
-type sqldRows struct {
-	result        *ResultSet
+type rows struct {
+	result        *resultSet
 	currentRowIdx int
 }
 
-func (r *sqldRows) Columns() []string {
+func (r *rows) Columns() []string {
 	return r.result.Columns
 }
 
-func (r *sqldRows) Close() error {
+func (r *rows) Close() error {
 	return nil
 }
 
-func (r *sqldRows) Next(dest []driver.Value) error {
+func (r *rows) Next(dest []driver.Value) error {
 	if r.currentRowIdx == len(r.result.Rows) {
 		return io.EOF
 	}
@@ -46,29 +46,29 @@ func (r *sqldRows) Next(dest []driver.Value) error {
 	return nil
 }
 
-type sqldConn struct {
+type conn struct {
 	url string
 }
 
-func SqldConnect(url string) *sqldConn {
-	return &sqldConn{url}
+func Connect(url string) *conn {
+	return &conn{url}
 }
 
-func (c *sqldConn) Prepare(query string) (driver.Stmt, error) {
+func (c *conn) Prepare(query string) (driver.Stmt, error) {
 	return nil, fmt.Errorf("Prepare method not implemented")
 }
 
-func (c *sqldConn) Close() error {
+func (c *conn) Close() error {
 	return nil
 }
 
-func (c *sqldConn) Begin() (driver.Tx, error) {
+func (c *conn) Begin() (driver.Tx, error) {
 	return nil, fmt.Errorf("Begin method not implemented")
 }
 
-func convertArgs(args []driver.NamedValue) Params {
+func convertArgs(args []driver.NamedValue) params {
 	if len(args) == 0 {
-		return Params{}
+		return params{}
 	}
 	sortedArgs := [](*driver.NamedValue){}
 	for idx := range args {
@@ -85,21 +85,21 @@ func convertArgs(args []driver.NamedValue) Params {
 		}
 		values = append(values, sortedArgs[idx].Value)
 	}
-	return Params{Names: names, Values: values}
+	return params{Names: names, Values: values}
 }
 
-func (c *sqldConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	_, err := CallSqld(c.url, query, convertArgs(args))
+func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	_, err := callSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
-	return &sqldResult{0, 0}, nil
+	return &result{0, 0}, nil
 }
 
-func (c *sqldConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	rs, err := CallSqld(c.url, query, convertArgs(args))
+func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	rs, err := callSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
-	return &sqldRows{rs, 0}, nil
+	return &rows{rs, 0}, nil
 }

@@ -8,39 +8,39 @@ import (
 	"sort"
 )
 
-type sqldWsResult struct {
+type result struct {
 	id      int64
 	changes int64
 }
 
-func (r *sqldWsResult) LastInsertId() (int64, error) {
+func (r *result) LastInsertId() (int64, error) {
 	return r.id, nil
 }
 
-func (r *sqldWsResult) RowsAffected() (int64, error) {
+func (r *result) RowsAffected() (int64, error) {
 	return r.changes, nil
 }
 
-type sqldWsRows struct {
-	res           *ExecResponse
+type rows struct {
+	res           *execResponse
 	currentRowIdx int
 }
 
-func (r *sqldWsRows) Columns() []string {
-	return r.res.Columns()
+func (r *rows) Columns() []string {
+	return r.res.columns()
 }
 
-func (r *sqldWsRows) Close() error {
+func (r *rows) Close() error {
 	return nil
 }
 
-func (r *sqldWsRows) Next(dest []driver.Value) error {
-	if r.currentRowIdx == r.res.RowsCount() {
+func (r *rows) Next(dest []driver.Value) error {
+	if r.currentRowIdx == r.res.rowsCount() {
 		return io.EOF
 	}
-	count := r.res.RowLen(r.currentRowIdx)
+	count := r.res.rowLen(r.currentRowIdx)
 	for idx := 0; idx < count; idx++ {
-		v, err := r.res.Value(r.currentRowIdx, idx)
+		v, err := r.res.value(r.currentRowIdx, idx)
 		if err != nil {
 			return err
 		}
@@ -50,39 +50,39 @@ func (r *sqldWsRows) Next(dest []driver.Value) error {
 	return nil
 }
 
-type sqldWsConn struct {
-	ws *SqldWebsocket
+type conn struct {
+	ws *websocketConn
 }
 
-func SqldConnect(url string, jwt string) (*sqldWsConn, error) {
-	c, err := Connect(url, jwt)
+func Connect(url string, jwt string) (*conn, error) {
+	c, err := connect(url, jwt)
 	if err != nil {
 		return nil, err
 	}
-	return &sqldWsConn{c}, nil
+	return &conn{c}, nil
 }
 
-func (c *sqldWsConn) Prepare(query string) (driver.Stmt, error) {
+func (c *conn) Prepare(query string) (driver.Stmt, error) {
 	return nil, fmt.Errorf("Prepare method not implemented")
 }
 
-func (c *sqldWsConn) Close() error {
+func (c *conn) Close() error {
 	return c.ws.Close()
 }
 
-func (c *sqldWsConn) Begin() (driver.Tx, error) {
+func (c *conn) Begin() (driver.Tx, error) {
 	return nil, fmt.Errorf("Begin method not implemented")
 }
 
-func convertArgs(args []driver.NamedValue) Params {
+func convertArgs(args []driver.NamedValue) params {
 	if len(args) == 0 {
-		return Params{}
+		return params{}
 	}
 	positionalArgs := [](*driver.NamedValue){}
-	namedArgs := []NamedParam{}
+	namedArgs := []namedParam{}
 	for idx := range args {
 		if len(args[idx].Name) > 0 {
-			namedArgs = append(namedArgs, NamedParam{args[idx].Name, args[idx].Value})
+			namedArgs = append(namedArgs, namedParam{args[idx].Name, args[idx].Value})
 		} else {
 			positionalArgs = append(positionalArgs, &args[idx])
 		}
@@ -94,21 +94,21 @@ func convertArgs(args []driver.NamedValue) Params {
 	for idx := range positionalArgs {
 		posArgs = append(posArgs, positionalArgs[idx].Value)
 	}
-	return Params{PositinalArgs: posArgs, NamedArgs: namedArgs}
+	return params{PositinalArgs: posArgs, NamedArgs: namedArgs}
 }
 
-func (c *sqldWsConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	res, err := c.ws.Exec(query, convertArgs(args), false)
+func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	res, err := c.ws.exec(query, convertArgs(args), false)
 	if err != nil {
 		return nil, err
 	}
-	return &sqldWsResult{0, res.AffectedRowCount()}, nil
+	return &result{0, res.affectedRowCount()}, nil
 }
 
-func (c *sqldWsConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	res, err := c.ws.Exec(query, convertArgs(args), true)
+func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	res, err := c.ws.exec(query, convertArgs(args), true)
 	if err != nil {
 		return nil, err
 	}
-	return &sqldWsRows{res, 0}, nil
+	return &rows{res, 0}, nil
 }

@@ -19,19 +19,19 @@ func isErrorResp(resp interface{}) bool {
 	return resp.(map[string]interface{})["type"] == "response_error"
 }
 
-type SqldWebsocket struct {
+type websocketConn struct {
 	conn   *websocket.Conn
 	idPool *pools.IDPool
 }
 
-type NamedParam struct {
+type namedParam struct {
 	Name  string
 	Value any
 }
 
-type Params struct {
+type params struct {
 	PositinalArgs []any
-	NamedArgs     []NamedParam
+	NamedArgs     []namedParam
 }
 
 func convertValue(v any) (map[string]interface{}, error) {
@@ -56,15 +56,15 @@ func convertValue(v any) (map[string]interface{}, error) {
 	return res, nil
 }
 
-type ExecResponse struct {
+type execResponse struct {
 	resp map[string]interface{}
 }
 
-func (r *ExecResponse) AffectedRowCount() int64 {
+func (r *execResponse) affectedRowCount() int64 {
 	return int64(r.resp["affected_row_count"].(float64))
 }
 
-func (r *ExecResponse) Columns() []string {
+func (r *execResponse) columns() []string {
 	res := []string{}
 	cols := r.resp["cols"].([]interface{})
 	for idx := range cols {
@@ -77,15 +77,15 @@ func (r *ExecResponse) Columns() []string {
 	return res
 }
 
-func (r *ExecResponse) RowsCount() int {
+func (r *execResponse) rowsCount() int {
 	return len(r.resp["rows"].([]interface{}))
 }
 
-func (r *ExecResponse) RowLen(rowIdx int) int {
+func (r *execResponse) rowLen(rowIdx int) int {
 	return len(r.resp["rows"].([]interface{})[rowIdx].([]interface{}))
 }
 
-func (r *ExecResponse) Value(rowIdx int, colIdx int) (any, error) {
+func (r *execResponse) value(rowIdx int, colIdx int) (any, error) {
 	val := r.resp["rows"].([]interface{})[rowIdx].([]interface{})[colIdx].(map[string]interface{})
 	switch val["type"] {
 	case "null":
@@ -111,7 +111,7 @@ func (r *ExecResponse) Value(rowIdx int, colIdx int) (any, error) {
 	return nil, fmt.Errorf("unrecognized value type: %s", val["type"])
 }
 
-func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecResponse, error) {
+func (ws *websocketConn) exec(sql string, sqlParams params, wantRows bool) (*execResponse, error) {
 	ctx := context.TODO()
 	requestId := ws.idPool.Get()
 	defer ws.idPool.Put(requestId)
@@ -119,10 +119,10 @@ func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecRe
 		"sql":       sql,
 		"want_rows": wantRows,
 	}
-	if len(params.PositinalArgs) > 0 {
+	if len(sqlParams.PositinalArgs) > 0 {
 		args := []map[string]interface{}{}
-		for idx := range params.PositinalArgs {
-			v, err := convertValue(params.PositinalArgs[idx])
+		for idx := range sqlParams.PositinalArgs {
+			v, err := convertValue(sqlParams.PositinalArgs[idx])
 			if err != nil {
 				return nil, err
 			}
@@ -130,15 +130,15 @@ func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecRe
 		}
 		stmt["args"] = args
 	}
-	if len(params.NamedArgs) > 0 {
+	if len(sqlParams.NamedArgs) > 0 {
 		args := []map[string]interface{}{}
-		for idx := range params.NamedArgs {
-			v, err := convertValue(params.NamedArgs[idx].Value)
+		for idx := range sqlParams.NamedArgs {
+			v, err := convertValue(sqlParams.NamedArgs[idx].Value)
 			if err != nil {
 				return nil, err
 			}
 			arg := map[string]interface{}{
-				"name":  params.NamedArgs[idx].Name,
+				"name":  sqlParams.NamedArgs[idx].Name,
 				"value": v,
 			}
 			args = append(args, arg)
@@ -168,14 +168,14 @@ func (ws *SqldWebsocket) Exec(sql string, params Params, wantRows bool) (*ExecRe
 		return nil, err
 	}
 
-	return &ExecResponse{resp.(map[string]interface{})["response"].(map[string]interface{})["result"].(map[string]interface{})}, nil
+	return &execResponse{resp.(map[string]interface{})["response"].(map[string]interface{})["result"].(map[string]interface{})}, nil
 }
 
-func (ws *SqldWebsocket) Close() error {
+func (ws *websocketConn) Close() error {
 	return ws.conn.Close(websocket.StatusNormalClosure, "All's good")
 }
 
-func Connect(url string, jwt string) (*SqldWebsocket, error) {
+func connect(url string, jwt string) (*websocketConn, error) {
 	ctx := context.TODO()
 	c, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{
 		Subprotocols: []string{"hrana1"},
@@ -230,5 +230,5 @@ func Connect(url string, jwt string) (*SqldWebsocket, error) {
 		c.Close(websocket.StatusProtocolError, err.Error())
 		return nil, err
 	}
-	return &SqldWebsocket{c, pools.NewIDPool(0)}, nil
+	return &websocketConn{c, pools.NewIDPool(0)}, nil
 }

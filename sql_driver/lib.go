@@ -23,10 +23,10 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
-		return sqldwebsockets.SqldConnect(dbUrl, u.Query().Get("jwt"))
+		return sqldwebsockets.Connect(dbUrl, u.Query().Get("jwt"))
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return sqldhttp.SqldConnect(dbUrl), nil
+		return sqldhttp.Connect(dbUrl), nil
 	}
 	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with file://, https://, http://, wss:// and ws://", dbUrl)
 }
