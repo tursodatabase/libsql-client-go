@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
+	"sync"
 
 	_ "github.com/libsql/libsql-client-go/sql_driver"
 )
@@ -19,6 +21,15 @@ func exec(db *sql.DB, stmt string, args ...any) sql.Result {
 
 func query(db *sql.DB, stmt string, args ...any) *sql.Rows {
 	res, err := db.Query(stmt, args...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to execute query %s: %s", stmt, err)
+		os.Exit(1)
+	}
+	return res
+}
+
+func queryConn(conn *sql.Conn, stmt string, args ...any) *sql.Rows {
+	res, err := conn.QueryContext(context.Background(), stmt, args...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to execute query %s: %s", stmt, err)
 		os.Exit(1)
@@ -66,10 +77,135 @@ func runCounterExample(dbPath string) {
 	}
 }
 
+func runConcurrentExample(dbPath string) {
+	db, err := sql.Open("libsql", dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dbPath, err)
+		os.Exit(1)
+	}
+	exec(db, "DROP TABLE IF EXISTS table1")
+	exec(db, "DROP TABLE IF EXISTS table2")
+	exec(db, "DROP TABLE IF EXISTS table3")
+	exec(db, "CREATE TABLE table1(key int, value int)")
+	exec(db, "CREATE TABLE table2(key int, value int)")
+	exec(db, "CREATE TABLE table3(key int, value int)")
+	for i := 1; i < 10; i++ {
+		exec(db, "INSERT INTO table1 VALUES(?, ?)", i, i)
+		exec(db, "INSERT INTO table2 VALUES(?, ?)", i, -1*i)
+		exec(db, "INSERT INTO table3 VALUES(?, ?)", i, 0)
+	}
+	var wg sync.WaitGroup
+	wg.Add(3)
+	worker := func(tableName string, check func(int)) {
+		defer wg.Done()
+		for i := 1; i < 100; i++ {
+			rows := query(db, "SELECT value FROM "+tableName)
+			for rows.Next() {
+				var v int
+				if err := rows.Scan(&v); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to scan row: %s", err)
+					os.Exit(1)
+				}
+				check(v)
+			}
+			if err := rows.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "errors from query: %s", err)
+				os.Exit(1)
+			}
+		}
+	}
+	go worker("table1", func(v int) {
+		if v <= 0 {
+			fmt.Fprintf(os.Stderr, "got non-positive value from table1: %d", v)
+			os.Exit(1)
+		}
+	})
+	go worker("table2", func(v int) {
+		if v >= 0 {
+			fmt.Fprintf(os.Stderr, "got non-negative value from table2: %d", v)
+			os.Exit(1)
+		}
+	})
+	go worker("table3", func(v int) {
+		if v != 0 {
+			fmt.Fprintf(os.Stderr, "got non-zero value from table3: %d", v)
+			os.Exit(1)
+		}
+	})
+	wg.Wait()
+}
+
+func runConcurrentOnOneConnectionExample(dbPath string) {
+	db, err := sql.Open("libsql", dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dbPath, err)
+		os.Exit(1)
+	}
+	exec(db, "DROP TABLE IF EXISTS table1")
+	exec(db, "DROP TABLE IF EXISTS table2")
+	exec(db, "DROP TABLE IF EXISTS table3")
+	exec(db, "CREATE TABLE table1(key int, value int)")
+	exec(db, "CREATE TABLE table2(key int, value int)")
+	exec(db, "CREATE TABLE table3(key int, value int)")
+	for i := 1; i < 10; i++ {
+		exec(db, "INSERT INTO table1 VALUES(?, ?)", i, i)
+		exec(db, "INSERT INTO table2 VALUES(?, ?)", i, -1*i)
+		exec(db, "INSERT INTO table3 VALUES(?, ?)", i, 0)
+	}
+	var wg sync.WaitGroup
+	wg.Add(3)
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get db connection %s: %s", dbPath, err)
+		os.Exit(1)
+	}
+	worker := func(tableName string, check func(int)) {
+		defer wg.Done()
+		for i := 1; i < 100; i++ {
+			rows := queryConn(conn, "SELECT value FROM "+tableName)
+			for rows.Next() {
+				var v int
+				if err := rows.Scan(&v); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to scan row: %s", err)
+					os.Exit(1)
+				}
+				check(v)
+			}
+			if err := rows.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "errors from query: %s", err)
+				os.Exit(1)
+			}
+		}
+	}
+	go worker("table1", func(v int) {
+		if v <= 0 {
+			fmt.Fprintf(os.Stderr, "got non-positive value from table1: %d", v)
+			os.Exit(1)
+		}
+	})
+	go worker("table2", func(v int) {
+		if v >= 0 {
+			fmt.Fprintf(os.Stderr, "got non-negative value from table2: %d", v)
+			os.Exit(1)
+		}
+	})
+	go worker("table3", func(v int) {
+		if v != 0 {
+			fmt.Fprintf(os.Stderr, "got non-zero value from table3: %d", v)
+			os.Exit(1)
+		}
+	})
+	wg.Wait()
+}
+
 var dbUrl = ""
 var dbFile = "file:test.db"
 
 func main() {
 	runCounterExample(dbUrl)
 	runCounterExample(dbFile)
+	runConcurrentExample(dbUrl)
+	runConcurrentExample(dbFile)
+	runConcurrentOnOneConnectionExample(dbUrl)
+	runConcurrentOnOneConnectionExample(dbFile)
 }

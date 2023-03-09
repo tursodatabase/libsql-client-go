@@ -10,12 +10,12 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
-type Params struct {
+type params struct {
 	Names  []string
 	Values []any
 }
 
-func (p *Params) MarshalJSON() ([]byte, error) {
+func (p *params) MarshalJSON() ([]byte, error) {
 	if len(p.Values) == 0 {
 		return json.Marshal([]string{})
 	}
@@ -29,14 +29,14 @@ func (p *Params) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-type ResultSet struct {
+type resultSet struct {
 	Columns []string `json:"columns"`
 	Rows    []Row    `json:"rows"`
 }
 
 type Row []interface{}
 
-func CallSqld(url string, sql string, params Params) (*ResultSet, error) {
+func callSqld(url string, sql string, sqlParams params) (*resultSet, error) {
 	stmts, err := sqlparser.SplitStatementToPieces(sql)
 	if err != nil {
 		return nil, err
@@ -47,13 +47,13 @@ func CallSqld(url string, sql string, params Params) (*ResultSet, error) {
 
 	type Statement struct {
 		Query  string `json:"q"`
-		Params Params `json:"params"`
+		Params params `json:"params"`
 	}
 
 	rawReq := struct {
 		Statements []Statement `json:"statements"`
 	}{
-		Statements: []Statement{{sql, params}},
+		Statements: []Statement{{sql, sqlParams}},
 	}
 
 	req, err := json.Marshal(rawReq)
@@ -84,7 +84,7 @@ func CallSqld(url string, sql string, params Params) (*ResultSet, error) {
 	}
 
 	var results []struct {
-		Results *ResultSet `json:"results"`
+		Results *resultSet `json:"results"`
 		Error   *errObject `json:"error"`
 	}
 	if err := json.Unmarshal(body, &results); err != nil {
