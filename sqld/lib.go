@@ -1,4 +1,4 @@
-package libsqldriver
+package sqld
 
 import (
 	"database/sql"
