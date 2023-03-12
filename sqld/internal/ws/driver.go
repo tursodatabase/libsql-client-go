@@ -1,4 +1,4 @@
-package sqldwebsockets
+package ws
 
 import (
 	"context"

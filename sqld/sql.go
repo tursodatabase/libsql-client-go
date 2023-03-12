@@ -7,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/libsql/libsql-client-go/sqld/internal/http"
-	"github.com/libsql/libsql-client-go/sqld/internal/sqld/sqldwebsockets"
+	"github.com/libsql/libsql-client-go/sqld/internal/ws"
 	"github.com/mattn/go-sqlite3"
 )
 
@@ -23,7 +23,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
-		return sqldwebsockets.Connect(dbUrl, u.Query().Get("jwt"))
+		return ws.Connect(dbUrl, u.Query().Get("jwt"))
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
 		return http.Connect(dbUrl), nil
