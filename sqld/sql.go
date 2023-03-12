@@ -1,4 +1,4 @@
-package libsqldriver
+package sqld
 
 import (
 	"database/sql"
@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/libsql/libsql-client-go/internal/sqld/sqldhttp"
-	"github.com/libsql/libsql-client-go/internal/sqld/sqldwebsockets"
+	"github.com/libsql/libsql-client-go/sqld/internal/http"
+	"github.com/libsql/libsql-client-go/sqld/internal/ws"
 	"github.com/mattn/go-sqlite3"
 )
 
@@ -23,10 +23,10 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
-		return sqldwebsockets.Connect(dbUrl, u.Query().Get("jwt"))
+		return ws.Connect(dbUrl, u.Query().Get("jwt"))
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return sqldhttp.Connect(dbUrl), nil
+		return http.Connect(dbUrl), nil
 	}
 	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with file://, https://, http://, wss:// and ws://", dbUrl)
 }

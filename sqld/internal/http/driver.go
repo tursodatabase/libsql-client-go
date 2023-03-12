@@ -1,4 +1,4 @@
-package sqldwebsockets
+package http
 
 import (
 	"context"
@@ -22,12 +22,12 @@ func (r *result) RowsAffected() (int64, error) {
 }
 
 type rows struct {
-	res           *execResponse
+	result        *resultSet
 	currentRowIdx int
 }
 
 func (r *rows) Columns() []string {
-	return r.res.columns()
+	return r.result.Columns
 }
 
 func (r *rows) Close() error {
@@ -35,31 +35,23 @@ func (r *rows) Close() error {
 }
 
 func (r *rows) Next(dest []driver.Value) error {
-	if r.currentRowIdx == r.res.rowsCount() {
+	if r.currentRowIdx == len(r.result.Rows) {
 		return io.EOF
 	}
-	count := r.res.rowLen(r.currentRowIdx)
+	count := len(r.result.Rows[r.currentRowIdx])
 	for idx := 0; idx < count; idx++ {
-		v, err := r.res.value(r.currentRowIdx, idx)
-		if err != nil {
-			return err
-		}
-		dest[idx] = v
+		dest[idx] = r.result.Rows[r.currentRowIdx][idx]
 	}
 	r.currentRowIdx++
 	return nil
 }
 
 type conn struct {
-	ws *websocketConn
+	url string
 }
 
-func Connect(url string, jwt string) (*conn, error) {
-	c, err := connect(url, jwt)
-	if err != nil {
-		return nil, err
-	}
-	return &conn{c}, nil
+func Connect(url string) *conn {
+	return &conn{url}
 }
 
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
@@ -67,7 +59,7 @@ func (c *conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *conn) Close() error {
-	return c.ws.Close()
+	return nil
 }
 
 func (c *conn) Begin() (driver.Tx, error) {
@@ -78,37 +70,36 @@ func convertArgs(args []driver.NamedValue) params {
 	if len(args) == 0 {
 		return params{}
 	}
-	positionalArgs := [](*driver.NamedValue){}
-	namedArgs := []namedParam{}
+	sortedArgs := [](*driver.NamedValue){}
 	for idx := range args {
-		if len(args[idx].Name) > 0 {
-			namedArgs = append(namedArgs, namedParam{args[idx].Name, args[idx].Value})
-		} else {
-			positionalArgs = append(positionalArgs, &args[idx])
-		}
+		sortedArgs = append(sortedArgs, &args[idx])
 	}
-	sort.Slice(positionalArgs, func(i, j int) bool {
-		return positionalArgs[i].Ordinal < positionalArgs[j].Ordinal
+	sort.Slice(sortedArgs, func(i, j int) bool {
+		return sortedArgs[i].Ordinal < sortedArgs[j].Ordinal
 	})
-	posArgs := [](any){}
-	for idx := range positionalArgs {
-		posArgs = append(posArgs, positionalArgs[idx].Value)
+	names := [](string){}
+	values := [](any){}
+	for idx := range sortedArgs {
+		if len(sortedArgs[idx].Name) > 0 {
+			names = append(names, sortedArgs[idx].Name)
+		}
+		values = append(values, sortedArgs[idx].Value)
 	}
-	return params{PositinalArgs: posArgs, NamedArgs: namedArgs}
+	return params{Names: names, Values: values}
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	res, err := c.ws.exec(query, convertArgs(args), false)
+	_, err := callSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
-	return &result{0, res.affectedRowCount()}, nil
+	return &result{0, 0}, nil
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	res, err := c.ws.exec(query, convertArgs(args), true)
+	rs, err := callSqld(c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
-	return &rows{res, 0}, nil
+	return &rows{rs, 0}, nil
 }

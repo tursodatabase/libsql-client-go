@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	_ "github.com/libsql/libsql-client-go/sql_driver"
+	_ "github.com/libsql/libsql-client-go/sqld"
 )
 
 func exec(db *sql.DB, stmt string, args ...any) sql.Result {
