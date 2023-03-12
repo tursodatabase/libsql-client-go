@@ -1,4 +1,4 @@
-package sqldhttp
+package http
 
 import (
 	"context"
