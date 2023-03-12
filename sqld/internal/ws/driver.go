@@ -70,8 +70,33 @@ func (c *conn) Close() error {
 	return c.ws.Close()
 }
 
+type tx struct {
+	c *conn
+}
+
+func (t tx) Commit() error {
+	_, err := t.c.ExecContext(context.TODO(), "COMMIT", nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t tx) Rollback() error {
+	_, err := t.c.ExecContext(context.TODO(), "ROLLBACK", nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *conn) Begin() (driver.Tx, error) {
-	return nil, fmt.Errorf("Begin method not implemented")
+	_, err := c.ExecContext(context.TODO(), "BEGIN", nil)
+	if err != nil {
+		return tx{nil}, err
+	}
+
+	return tx{c}, nil
 }
 
 func convertArgs(args []driver.NamedValue) params {
