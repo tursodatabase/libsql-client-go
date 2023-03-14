@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/libsql/libsql-client-go/sqld/internal/http"
-	"github.com/libsql/libsql-client-go/sqld/internal/ws"
+	"github.com/libsql/libsql-client-go/libsql/internal/http"
+	"github.com/libsql/libsql-client-go/libsql/internal/ws"
 	"github.com/mattn/go-sqlite3"
 )
 
