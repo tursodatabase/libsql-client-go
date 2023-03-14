@@ -1,4 +1,4 @@
-package sqld
+package libsql
 
 import (
 	"database/sql"
