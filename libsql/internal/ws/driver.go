@@ -3,7 +3,6 @@ package ws
 import (
 	"context"
 	"database/sql/driver"
-	"fmt"
 	"io"
 	"sort"
 )
@@ -62,8 +61,40 @@ func Connect(url string, jwt string) (*conn, error) {
 	return &conn{c}, nil
 }
 
+type stmt struct {
+	c     *conn
+	query string
+}
+
+func (s stmt) Close() error {
+	return nil
+}
+
+func (s stmt) NumInput() int {
+	return -1
+}
+
+func convertToNamed(args []driver.Value) []driver.NamedValue {
+	if len(args) == 0 {
+		return nil
+	}
+	result := []driver.NamedValue{}
+	for idx := range args {
+		result = append(result, driver.NamedValue{Ordinal: idx, Value: args[idx]})
+	}
+	return result
+}
+
+func (s stmt) Exec(args []driver.Value) (driver.Result, error) {
+	return s.c.ExecContext(context.TODO(), s.query, convertToNamed(args))
+}
+
+func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
+	return s.c.QueryContext(context.TODO(), s.query, convertToNamed(args))
+}
+
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
-	return nil, fmt.Errorf("Prepare method not implemented")
+	return stmt{c, query}, nil
 }
 
 func (c *conn) Close() error {
