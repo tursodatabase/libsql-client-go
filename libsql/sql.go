@@ -8,7 +8,7 @@ import (
 
 	"github.com/libsql/libsql-client-go/libsql/internal/http"
 	"github.com/libsql/libsql-client-go/libsql/internal/ws"
-	"github.com/mattn/go-sqlite3"
+	"modernc.org/sqlite"
 )
 
 type LibsqlDriver struct {
@@ -20,7 +20,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 	if u.Scheme == "file" {
-		return (&sqlite3.SQLiteDriver{}).Open(dbUrl)
+		return (&sqlite.Driver{}).Open(dbUrl)
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
 		return ws.Connect(dbUrl, u.Query().Get("jwt"))
