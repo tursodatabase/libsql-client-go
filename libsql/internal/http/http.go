@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,7 +37,7 @@ type resultSet struct {
 
 type Row []interface{}
 
-func callSqld(url string, sql string, sqlParams params) (*resultSet, error) {
+func callSqld(ctx context.Context, url string, sql string, sqlParams params) (*resultSet, error) {
 	stmts, err := sqlparser.SplitStatementToPieces(sql)
 	if err != nil {
 		return nil, err
@@ -56,11 +57,18 @@ func callSqld(url string, sql string, sqlParams params) (*resultSet, error) {
 		Statements: []Statement{{sql, sqlParams}},
 	}
 
-	req, err := json.Marshal(rawReq)
+	reqBody, err := json.Marshal(rawReq)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewReader(req))
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
