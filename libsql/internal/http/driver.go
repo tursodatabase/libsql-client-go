@@ -89,7 +89,7 @@ func convertArgs(args []driver.NamedValue) params {
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	_, err := callSqld(c.url, query, convertArgs(args))
+	_, err := callSqld(ctx, c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	rs, err := callSqld(c.url, query, convertArgs(args))
+	rs, err := callSqld(ctx, c.url, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
