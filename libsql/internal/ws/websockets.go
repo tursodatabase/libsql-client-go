@@ -5,11 +5,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"time"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 	"vitess.io/vitess/go/pools"
 )
+
+var defaultConnTimeout = 120 * time.Second
 
 func errorMsg(errorResp interface{}) string {
 	return errorResp.(map[string]interface{})["error"].(map[string]interface{})["message"].(string)
@@ -111,8 +114,7 @@ func (r *execResponse) value(rowIdx int, colIdx int) (any, error) {
 	return nil, fmt.Errorf("unrecognized value type: %s", val["type"])
 }
 
-func (ws *websocketConn) exec(sql string, sqlParams params, wantRows bool) (*execResponse, error) {
-	ctx := context.TODO()
+func (ws *websocketConn) exec(ctx context.Context, sql string, sqlParams params, wantRows bool) (*execResponse, error) {
 	requestId := ws.idPool.Get()
 	defer ws.idPool.Put(requestId)
 	stmt := map[string]interface{}{
@@ -176,7 +178,8 @@ func (ws *websocketConn) Close() error {
 }
 
 func connect(url string, jwt string) (*websocketConn, error) {
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultConnTimeout)
+	defer cancel()
 	c, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{
 		Subprotocols: []string{"hrana1"},
 	})

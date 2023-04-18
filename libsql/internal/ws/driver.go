@@ -154,7 +154,7 @@ func convertArgs(args []driver.NamedValue) params {
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	res, err := c.ws.exec(query, convertArgs(args), false)
+	res, err := c.ws.exec(ctx, query, convertArgs(args), false)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	res, err := c.ws.exec(query, convertArgs(args), true)
+	res, err := c.ws.exec(ctx, query, convertArgs(args), true)
 	if err != nil {
 		return nil, err
 	}
