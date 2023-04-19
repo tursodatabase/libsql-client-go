@@ -86,11 +86,15 @@ func convertToNamed(args []driver.Value) []driver.NamedValue {
 }
 
 func (s stmt) Exec(args []driver.Value) (driver.Result, error) {
-	return s.c.ExecContext(context.TODO(), s.query, convertToNamed(args))
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWSTimeout)
+	defer cancel()
+	return s.c.ExecContext(ctx, s.query, convertToNamed(args))
 }
 
 func (s stmt) Query(args []driver.Value) (driver.Rows, error) {
-	return s.c.QueryContext(context.TODO(), s.query, convertToNamed(args))
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWSTimeout)
+	defer cancel()
+	return s.c.QueryContext(ctx, s.query, convertToNamed(args))
 }
 
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
@@ -154,7 +158,7 @@ func convertArgs(args []driver.NamedValue) params {
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	res, err := c.ws.exec(query, convertArgs(args), false)
+	res, err := c.ws.exec(ctx, query, convertArgs(args), false)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +166,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	res, err := c.ws.exec(query, convertArgs(args), true)
+	res, err := c.ws.exec(ctx, query, convertArgs(args), true)
 	if err != nil {
 		return nil, err
 	}

@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/xwb1989/sqlparser"
 )
+
+var httpClient = &http.Client{Timeout: 120 * time.Second}
 
 type params struct {
 	Names  []string
@@ -68,7 +71,7 @@ func callSqld(ctx context.Context, url string, sql string, sqlParams params) (*r
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
