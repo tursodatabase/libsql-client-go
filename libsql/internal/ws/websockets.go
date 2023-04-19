@@ -12,7 +12,9 @@ import (
 	"vitess.io/vitess/go/pools"
 )
 
-var defaultConnTimeout = 120 * time.Second
+// defaultWSTimeout specifies the timeout used for initial http connection and
+// the subsequent websocket read/write operations
+var defaultWSTimeout = 120 * time.Second
 
 func errorMsg(errorResp interface{}) string {
 	return errorResp.(map[string]interface{})["error"].(map[string]interface{})["message"].(string)
@@ -178,7 +180,7 @@ func (ws *websocketConn) Close() error {
 }
 
 func connect(url string, jwt string) (*websocketConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultConnTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWSTimeout)
 	defer cancel()
 	c, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{
 		Subprotocols: []string{"hrana1"},
