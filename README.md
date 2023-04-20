@@ -13,7 +13,7 @@ go run -ldflags="-X 'main.dbUrl=https://<login>:<password>@<sqld db url>'" examp
 
 Using Websockets:
 ```console
-go run -ldflags="-X 'main.dbUrl=wss://<sqld db url>:2023?jwt=<jwt authorization token>'" examples/sql/counter/main.go
+go run -ldflags="-X 'main.dbUrl=wss://<sqld db url>?jwt=<jwt authorization token>'" examples/sql/counter/main.go
 ```
 
 ## License
