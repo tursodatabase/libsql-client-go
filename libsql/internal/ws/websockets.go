@@ -51,7 +51,7 @@ func convertValue(v any) (map[string]interface{}, error) {
 		res["value"] = text
 	} else if blob, ok := v.([]byte); ok {
 		res["type"] = "blob"
-		res["base64"] = base64.StdEncoding.EncodeToString(blob)
+		res["base64"] = base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(blob)
 	} else if float, ok := v.(float64); ok {
 		res["type"] = "float"
 		res["value"] = float
@@ -105,7 +105,7 @@ func (r *execResponse) value(rowIdx int, colIdx int) (any, error) {
 		return val["value"].(string), nil
 	case "blob":
 		base64Encoded := val["base64"].(string)
-		v, err := base64.StdEncoding.DecodeString(base64Encoded)
+		v, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(base64Encoded)
 		if err != nil {
 			return nil, err
 		}
