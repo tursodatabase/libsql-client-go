@@ -4,12 +4,21 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"github.com/libsql/libsql-client-go/libsql/internal/http"
-	"github.com/libsql/libsql-client-go/libsql/internal/ws"
-	"modernc.org/sqlite"
 	"net/url"
 	"strings"
+
+	"github.com/libsql/libsql-client-go/libsql/internal/http"
+	"github.com/libsql/libsql-client-go/libsql/internal/ws"
 )
+
+func contains(s []string, item string) bool {
+	for idx := range s {
+		if s[idx] == item {
+			return true
+		}
+	}
+	return false
+}
 
 type LibsqlDriver struct {
 }
@@ -20,7 +29,18 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 	if u.Scheme == "file" {
-		return (&sqlite.Driver{}).Open(dbUrl)
+		expectedDrivers := []string{"sqlite", "sqlite3"}
+		presentDrivers := sql.Drivers()
+		for _, expectedDriver := range expectedDrivers {
+			if contains(presentDrivers, expectedDriver) {
+				db, err := sql.Open(expectedDriver, dbUrl)
+				if err != nil {
+					return nil, err
+				}
+				return db.Driver().Open(dbUrl)
+			}
+		}
+		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver.")
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
 		return ws.Connect(dbUrl, u.Query().Get("jwt"))
