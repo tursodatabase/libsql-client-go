@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
-	"vitess.io/vitess/go/pools"
 )
 
 // defaultWSTimeout specifies the timeout used for initial http connection and
@@ -26,7 +26,7 @@ func isErrorResp(resp interface{}) bool {
 
 type websocketConn struct {
 	conn   *websocket.Conn
-	idPool *pools.IDPool
+	idPool *idPool
 }
 
 type namedParam struct {
@@ -235,5 +235,70 @@ func connect(url string, jwt string) (*websocketConn, error) {
 		c.Close(websocket.StatusProtocolError, err.Error())
 		return nil, err
 	}
-	return &websocketConn{c, pools.NewIDPool(0)}, nil
+	return &websocketConn{c, newIDPool()}, nil
+}
+
+// Below is modified IDPool from "vitess.io/vitess/go/pools"
+
+// idPool is used to ensure that the set of IDs in use concurrently never
+// contains any duplicates. The IDs start at 1 and increase without bound, but
+// will never be larger than the peak number of concurrent uses.
+//
+// idPool's Get() and Put() methods can be used concurrently.
+type idPool struct {
+	sync.Mutex
+
+	// used holds the set of values that have been returned to us with Put().
+	used map[uint32]bool
+	// maxUsed remembers the largest value we've given out.
+	maxUsed uint32
+}
+
+// NewIDPool creates and initializes an idPool.
+func newIDPool() *idPool {
+	return &idPool{
+		used:    make(map[uint32]bool),
+		maxUsed: 0,
+	}
+}
+
+// Get returns an ID that is unique among currently active users of this pool.
+func (pool *idPool) Get() (id uint32) {
+	pool.Lock()
+	defer pool.Unlock()
+
+	// Pick a value that's been returned, if any.
+	for key := range pool.used {
+		delete(pool.used, key)
+		return key
+	}
+
+	// No recycled IDs are available, so increase the pool size.
+	pool.maxUsed++
+	return pool.maxUsed
+}
+
+// Put recycles an ID back into the pool for others to use. Putting back a value
+// or 0, or a value that is not currently "checked out", will result in a panic
+// because that should never happen except in the case of a programming error.
+func (pool *idPool) Put(id uint32) {
+	pool.Lock()
+	defer pool.Unlock()
+
+	if id < 1 || id > pool.maxUsed {
+		panic(fmt.Errorf("idPool.Put(%v): invalid value, must be in the range [1,%v]", id, pool.maxUsed))
+	}
+
+	if pool.used[id] {
+		panic(fmt.Errorf("idPool.Put(%v): can't put value that was already recycled", id))
+	}
+
+	// If we're recycling maxUsed, just shrink the pool.
+	if id == pool.maxUsed {
+		pool.maxUsed = id - 1
+		return
+	}
+
+	// Add it to the set of recycled IDs.
+	pool.used[id] = true
 }
