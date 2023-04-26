@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	_ "github.com/libsql/libsql-client-go/libsql"
+	_ "modernc.org/sqlite"
 )
 
 func exec(db *sql.DB, stmt string, args ...any) sql.Result {
