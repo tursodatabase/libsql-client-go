@@ -12,8 +12,7 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
-// defaultWSTimeout specifies the timeout used for initial http connection and
-// the subsequent websocket read/write operations
+// defaultWSTimeout specifies the timeout used for initial http connection
 var defaultWSTimeout = 120 * time.Second
 
 func errorMsg(errorResp interface{}) string {
