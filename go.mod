@@ -3,9 +3,12 @@ module github.com/libsql/libsql-client-go
 go 1.19
 
 require (
-	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
+	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9
+	github.com/libsql/sqlite-antlr4-parser v0.0.0-20230512205400-b2348f0d1196
 	nhooyr.io/websocket v1.8.7
 )
+
+require golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 
 require (
 	github.com/golang/protobuf v1.5.2 // indirect
