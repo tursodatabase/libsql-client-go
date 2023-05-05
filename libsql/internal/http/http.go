@@ -40,7 +40,7 @@ type resultSet struct {
 
 type Row []interface{}
 
-func callSqld(ctx context.Context, url string, sql string, sqlParams params) (*resultSet, error) {
+func callSqld(ctx context.Context, url, jwt, sql string, sqlParams params) (*resultSet, error) {
 	stmts, err := sqlparser.SplitStatementToPieces(sql)
 	if err != nil {
 		return nil, err
@@ -70,6 +70,9 @@ func callSqld(ctx context.Context, url string, sql string, sqlParams params) (*r
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if len(jwt) > 0 {
+		req.Header.Set("Authorization", "Bearer "+jwt)
+	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

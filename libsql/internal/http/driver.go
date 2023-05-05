@@ -48,14 +48,15 @@ func (r *rows) Next(dest []driver.Value) error {
 
 type conn struct {
 	url string
+	jwt string
 }
 
-func Connect(url string) *conn {
-	return &conn{url}
+func Connect(url, jwt string) *conn {
+	return &conn{url, jwt}
 }
 
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
-	return nil, fmt.Errorf("Prepare method not implemented")
+	return nil, fmt.Errorf("prepare method not implemented")
 }
 
 func (c *conn) Close() error {
@@ -63,22 +64,22 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) Begin() (driver.Tx, error) {
-	return nil, fmt.Errorf("Begin method not implemented")
+	return nil, fmt.Errorf("begin method not implemented")
 }
 
 func convertArgs(args []driver.NamedValue) params {
 	if len(args) == 0 {
 		return params{}
 	}
-	sortedArgs := [](*driver.NamedValue){}
+	var sortedArgs []*driver.NamedValue
 	for idx := range args {
 		sortedArgs = append(sortedArgs, &args[idx])
 	}
 	sort.Slice(sortedArgs, func(i, j int) bool {
 		return sortedArgs[i].Ordinal < sortedArgs[j].Ordinal
 	})
-	names := [](string){}
-	values := [](any){}
+	var names []string
+	var values []any
 	for idx := range sortedArgs {
 		if len(sortedArgs[idx].Name) > 0 {
 			names = append(names, sortedArgs[idx].Name)
@@ -89,7 +90,7 @@ func convertArgs(args []driver.NamedValue) params {
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	_, err := callSqld(ctx, c.url, query, convertArgs(args))
+	_, err := callSqld(ctx, c.url, c.jwt, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	rs, err := callSqld(ctx, c.url, query, convertArgs(args))
+	rs, err := callSqld(ctx, c.url, c.jwt, query, convertArgs(args))
 	if err != nil {
 		return nil, err
 	}
