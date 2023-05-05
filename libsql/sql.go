@@ -46,7 +46,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return ws.Connect(dbUrl, u.Query().Get("jwt"))
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return http.Connect(dbUrl), nil
+		return http.Connect(dbUrl, u.Query().Get("jwt")), nil
 	}
 	if u.Scheme == "libsql" {
 		urlWithoutSchema, _ := strings.CutPrefix(dbUrl, "libsql://")
