@@ -69,16 +69,15 @@ func runCounterExample(dbPath string) {
 	exec(ctx, db, incCounterStatementPositionalArgs, "PL", "WAW", "PL", "WAW")
 	exec(ctx, db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
 	exec(ctx, db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
-	/* Uncomment once https://github.com/libsql/sqld/issues/237 is fixed */
-	//incCounterStatementNamedArgs := "INSERT INTO counter(country, city, value) VALUES(:country, :city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = :country AND city = :city"
-	//exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "PL"), sql.Named("city", "WAW"))
-	//exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "FI"), sql.Named("city", "HEL"))
-	//incCounterStatementNamedArgs2 := "INSERT INTO counter(country, city, value) VALUES(@country, @city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = @country AND city = @city"
-	//exec(ctx, db, incCounterStatementNamedArgs2, sql.Named("country", "PL"), sql.Named("city", "WAW"))
-	//exec(ctx, db, incCounterStatementNamedArgs2, sql.Named("country", "FI"), sql.Named("city", "HEL"))
-	//incCounterStatementNamedArgs3 := "INSERT INTO counter(country, city, value) VALUES($country, $city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = $country AND city = $city"
-	//exec(ctx, db, incCounterStatementNamedArgs3, sql.Named("country", "PL"), sql.Named("city", "WAW"))
-	//exec(ctx, db, incCounterStatementNamedArgs3, sql.Named("country", "FI"), sql.Named("city", "HEL"))
+	incCounterStatementNamedArgs := "INSERT INTO counter(country, city, value) VALUES(:country, :city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = :country AND city = :city"
+	exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "PL"), sql.Named("city", "WAW"))
+	exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "FI"), sql.Named("city", "HEL"))
+	incCounterStatementNamedArgs2 := "INSERT INTO counter(country, city, value) VALUES(@country, @city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = @country AND city = @city"
+	exec(ctx, db, incCounterStatementNamedArgs2, sql.Named("country", "PL"), sql.Named("city", "WAW"))
+	exec(ctx, db, incCounterStatementNamedArgs2, sql.Named("country", "FI"), sql.Named("city", "HEL"))
+	incCounterStatementNamedArgs3 := "INSERT INTO counter(country, city, value) VALUES($country, $city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = $country AND city = $city"
+	exec(ctx, db, incCounterStatementNamedArgs3, sql.Named("country", "PL"), sql.Named("city", "WAW"))
+	exec(ctx, db, incCounterStatementNamedArgs3, sql.Named("country", "FI"), sql.Named("city", "HEL"))
 
 	// try prepared statements
 	stmt, err := db.Prepare("UPDATE counter SET value = value + 1 WHERE country = ? AND city = ?")
