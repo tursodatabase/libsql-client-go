@@ -23,6 +23,15 @@ func contains(s []string, item string) bool {
 type LibsqlDriver struct {
 }
 
+// ExtractJwt extracts the jwt from the url and removes it from the url.
+func extractJwt(u *url.URL) string {
+	jwt := u.Query().Get("jwt")
+	if jwt != "" {
+		u.Query().Del("jwt")
+	}
+	return jwt
+}
+
 func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 	u, err := url.Parse(dbUrl)
 	if err != nil {
@@ -43,10 +52,12 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver.")
 	}
 	if u.Scheme == "wss" || u.Scheme == "ws" {
-		return ws.Connect(dbUrl, u.Query().Get("jwt"))
+		jwt := extractJwt(u)
+		return ws.Connect(u.String(), jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return http.Connect(dbUrl, u.Query().Get("jwt")), nil
+		jwt := extractJwt(u)
+		return http.Connect(u.String(), jwt), nil
 	}
 	if u.Scheme == "libsql" {
 		urlWithoutSchema, _ := strings.CutPrefix(dbUrl, "libsql://")
