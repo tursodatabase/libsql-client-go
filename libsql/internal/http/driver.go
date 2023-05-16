@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 )
 
@@ -40,7 +41,20 @@ func (r *rows) Next(dest []driver.Value) error {
 	}
 	count := len(r.result.Rows[r.currentRowIdx])
 	for idx := 0; idx < count; idx++ {
-		dest[idx] = r.result.Rows[r.currentRowIdx][idx]
+		value := r.result.Rows[r.currentRowIdx][idx]
+		dest[idx] = value
+		switch v := value.(type) {
+		case int64:
+			dest[idx] = int64(v)
+		case float64:
+			if math.Mod(v, 1) >= 0 {
+				dest[idx] = int64(v)
+			} else {
+				dest[idx] = v
+			}
+		default:
+			dest[idx] = value
+		}
 	}
 	r.currentRowIdx++
 	return nil
