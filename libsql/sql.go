@@ -23,15 +23,31 @@ type LibsqlDriver struct {
 
 // ExtractJwt extracts the JWT from the URL and removes it from the url.
 func extractJwt(query *url.Values) (string, error) {
-	authToken := query.Get("authToken")
+	authTokenSnake := query.Get("auth_token")
+	authTokenCamel := query.Get("authToken")
 	jwt := query.Get("jwt")
+	query.Del("auth_token")
 	query.Del("authToken")
 	query.Del("jwt")
-	if authToken != "" && jwt != "" {
-		return "", fmt.Errorf("both authToken and jwt are present in the url. Please use only one of them")
+
+	countNonEmpty := func(slice ...string) int {
+		count := 0
+		for _, s := range slice {
+			if s != "" {
+				count++
+			}
+		}
+		return count
 	}
-	if authToken != "" {
-		return authToken, nil
+
+	if countNonEmpty(authTokenSnake, authTokenCamel, jwt) > 1 {
+		return "", fmt.Errorf("please use at most one of the following query parameters: 'auth_token', 'authToken', 'jwt'")
+	}
+
+	if authTokenSnake != "" {
+		return authTokenSnake, nil
+	} else if authTokenCamel != "" {
+		return authTokenCamel, nil
 	} else {
 		return jwt, nil
 	}
