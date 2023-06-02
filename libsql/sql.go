@@ -22,11 +22,11 @@ type LibsqlDriver struct {
 }
 
 // ExtractJwt extracts the JWT from the URL and removes it from the url.
-func extractJwt(u *url.URL) (string, error) {
-	authToken := u.Query().Get("authToken")
-	jwt := u.Query().Get("jwt")
-	u.Query().Del("authToken")
-	u.Query().Del("jwt")
+func extractJwt(query *url.Values) (string, error) {
+	authToken := query.Get("authToken")
+	jwt := query.Get("jwt")
+	query.Del("authToken")
+	query.Del("jwt")
 	if authToken != "" && jwt != "" {
 		return "", fmt.Errorf("both authToken and jwt are present in the url. Please use only one of them")
 	}
@@ -34,6 +34,24 @@ func extractJwt(u *url.URL) (string, error) {
 		return authToken, nil
 	} else {
 		return jwt, nil
+	}
+}
+
+func extractTls(query *url.Values, scheme string) (bool, error) {
+	tls := query.Get("tls")
+	query.Del("tls")
+	if tls == "" {
+		if scheme == "http" || scheme == "ws" {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	} else if tls == "0" {
+		return false, nil
+	} else if tls == "1" {
+		return true, nil
+	} else {
+		return true, fmt.Errorf("unknown value of tls query parameter. Valid values are 0 and 1")
 	}
 }
 
@@ -56,23 +74,48 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		}
 		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver.")
 	}
-	if u.Scheme == "libsql" {
-		u.Scheme = "wss"
+
+	query := u.Query()
+	jwt, err := extractJwt(&query)
+	if err != nil {
+		return nil, err
 	}
-	if u.Scheme == "wss" || u.Scheme == "ws" {
-		jwt, err := extractJwt(u)
-		if err != nil {
-			return nil, err
+
+	tls, err := extractTls(&query, u.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	for name, _ := range query {
+		return nil, fmt.Errorf("unknown query parameter %#v", name)
+	}
+	u.RawQuery = ""
+
+	if u.Scheme == "libsql" {
+		if tls {
+			u.Scheme = "wss"
+		} else {
+			if u.Port() == "" {
+				return nil, fmt.Errorf("libsql:// URL with ?tls=0 must specify an explicit port")
+			}
+			u.Scheme = "ws"
 		}
+	}
+
+	if (u.Scheme == "wss" || u.Scheme == "https") && !tls {
+		return nil, fmt.Errorf("%s:// URL cannot opt out of TLS using ?tls=0", u.Scheme)
+	}
+	if (u.Scheme == "ws" || u.Scheme == "http") && tls {
+		return nil, fmt.Errorf("%s:// URL cannot opt in to TLS using ?tls=1", u.Scheme)
+	}
+
+	if u.Scheme == "wss" || u.Scheme == "ws" {
 		return ws.Connect(u.String(), jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		jwt, err := extractJwt(u)
-		if err != nil {
-			return nil, err
-		}
 		return http.Connect(u.String(), jwt), nil
 	}
+
 	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with libsql://, file://, https://, http://, wss:// and ws://", dbUrl)
 }
 
