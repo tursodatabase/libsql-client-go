@@ -42,13 +42,11 @@ func extractTls(query *url.Values, scheme string) (bool, error) {
 	query.Del("tls")
 	if tls == "" {
 		if scheme == "http" || scheme == "ws" {
-			tls = "0"
+			return false, nil
 		} else {
-			tls = "1"
+			return true, nil
 		}
-	}
-
-	if tls == "0" {
+	} else if tls == "0" {
 		return false, nil
 	} else if tls == "1" {
 		return true, nil
