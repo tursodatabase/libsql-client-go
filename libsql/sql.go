@@ -88,7 +88,10 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 
-	u.RawQuery = query.Encode()
+	for name, _ := range query {
+		return nil, fmt.Errorf("unknown query parameter %#v", name)
+	}
+	u.RawQuery = ""
 
 	if u.Scheme == "libsql" {
 		if tls {
