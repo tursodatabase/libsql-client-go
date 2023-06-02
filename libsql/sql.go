@@ -132,7 +132,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return http.Connect(u.String(), jwt), nil
 	}
 
-	return nil, fmt.Errorf("unsupported db path: %s\nThis driver supports only db paths that start with libsql://, file://, https://, http://, wss:// and ws://", dbUrl)
+	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)
 }
 
 func init() {
