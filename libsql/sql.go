@@ -30,15 +30,17 @@ func extractJwt(query *url.Values) (string, error) {
 	query.Del("authToken")
 	query.Del("jwt")
 
-	nonempty := func(x string) int {
-		if x != "" {
-			return 1
-		} else {
-			return 0
+	countNonEmpty := func(slice ...string) int {
+		count := 0
+		for _, s := range slice {
+			if s != "" {
+				count++
+			}
 		}
+		return count
 	}
 
-	if nonempty(authTokenSnake) + nonempty(authTokenCamel) + nonempty(jwt) > 1 {
+	if countNonEmpty(authTokenSnake, authTokenCamel, jwt) > 1 {
 		return "", fmt.Errorf("please use at most one of the following query parameters: 'auth_token', 'authToken', 'jwt'")
 	}
 
