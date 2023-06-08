@@ -129,7 +129,7 @@ func callSqld(ctx context.Context, url string, jwt string, sql string, parameter
 
 	var results []httpResults
 
-	if err := json.Unmarshal(body, &results); err != nil {
+	if err := unmarshalResponse(body, &results); err != nil {
 		return nil, err
 	}
 
@@ -158,4 +158,34 @@ func generatePostBody(sql string, sqlParams params) (*postBody, error) {
 	}
 
 	return &postBody, nil
+}
+
+// httpResultsAlternative is an alternative struct for unmarshalling the response
+// see more info here: https://github.com/libsql/sqld/issues/466
+type httpResultsAlternative struct {
+	Results *resultSet `json:"results"`
+	Error   string     `json:"error"`
+}
+
+func unmarshalResponse(body []byte, result *[]httpResults) error {
+	err := json.Unmarshal(body, result)
+	if err == nil {
+		return nil
+	}
+
+	var alternativeResults []httpResultsAlternative
+	errArray := json.Unmarshal(body, &alternativeResults)
+	if errArray != nil {
+		return err
+	}
+
+	convertedResult := make([]httpResults, len(alternativeResults))
+	for _, alternativeResult := range alternativeResults {
+		convertedResult = append(convertedResult, httpResults{
+			Results: alternativeResult.Results,
+			Error:   &httpErrObject{Message: alternativeResult.Error}})
+	}
+	result = &convertedResult
+
+	return nil
 }
