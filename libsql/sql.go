@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/libsql/libsql-client-go/libsql/internal/http"
 	"github.com/libsql/libsql-client-go/libsql/internal/ws"
-	"net/url"
 )
 
 func contains(s []string, item string) bool {
@@ -77,6 +79,9 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 	if u.Scheme == "file" {
+		if strings.HasPrefix(dbUrl, "file://") && !strings.HasPrefix(dbUrl, "file:///") {
+			return nil, fmt.Errorf("invalid database URL: %s. File URLs should not have double leading slashes. ", dbUrl)
+		}
 		expectedDrivers := []string{"sqlite", "sqlite3"}
 		presentDrivers := sql.Drivers()
 		for _, expectedDriver := range expectedDrivers {
