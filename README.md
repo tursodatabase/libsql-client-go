@@ -108,7 +108,7 @@ for inclusion in `sqld` by you, shall be licensed as MIT, without any additional
 terms or conditions.
 
 
-[database/sql]: https://pkg.go.dev/database/sql
+[database/sql package]: https://pkg.go.dev/database/sql
 [libSQL sqld]: https://github.com/libsql/sqld/
 [Turso]: https://turso.tech
 [modernc.org/sqlite]: https://pkg.go.dev/modernc.org/sqlite
