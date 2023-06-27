@@ -24,8 +24,9 @@ func isErrorResp(resp interface{}) bool {
 }
 
 type websocketConn struct {
-	conn   *websocket.Conn
-	idPool *idPool
+	conn     *websocket.Conn
+	idPool   *idPool
+	isClosed bool
 }
 
 type namedParam struct {
@@ -158,11 +159,13 @@ func (ws *websocketConn) exec(ctx context.Context, sql string, sqlParams params,
 		},
 	})
 	if err != nil {
+		ws.isClosed = true
 		return nil, err
 	}
 
 	var resp interface{}
 	if err = wsjson.Read(ctx, ws.conn, &resp); err != nil {
+		ws.isClosed = true
 		return nil, err
 	}
 
@@ -234,7 +237,7 @@ func connect(url string, jwt string) (*websocketConn, error) {
 		c.Close(websocket.StatusProtocolError, err.Error())
 		return nil, err
 	}
-	return &websocketConn{c, newIDPool()}, nil
+	return &websocketConn{c, newIDPool(), false}, nil
 }
 
 // Below is modified IDPool from "vitess.io/vitess/go/pools"

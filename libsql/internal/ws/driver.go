@@ -50,7 +50,9 @@ func (r *rows) Next(dest []driver.Value) error {
 }
 
 type conn struct {
-	ws *websocketConn
+	ws  *websocketConn
+	url string
+	jwt string
 }
 
 func Connect(url string, jwt string) (*conn, error) {
@@ -58,7 +60,7 @@ func Connect(url string, jwt string) (*conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &conn{c}, nil
+	return &conn{c, url, jwt}, nil
 }
 
 type stmt struct {
@@ -171,13 +173,56 @@ func convertArgs(args []driver.NamedValue) params {
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	res, err := c.ws.exec(ctx, query, convertArgs(args), false)
 	if err != nil {
-		return nil, err
+		switch {
+		case c.ws.isClosed:
+			return execContextRetryOne(c, ctx, query, args)
+		default:
+			return nil, err
+		}
 	}
 	return &result{0, res.affectedRowCount()}, nil
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	res, err := c.ws.exec(ctx, query, convertArgs(args), true)
+	if err != nil {
+		switch {
+		case c.ws.isClosed:
+			return queryContextRetryOne(c, ctx, query, args)
+		default:
+			return nil, err
+		}
+	}
+	return &rows{res, 0}, nil
+}
+
+func (c *conn) reconnect() error {
+	ws, err := connect(c.url, c.jwt)
+	if err != nil {
+		return err
+	}
+	c.ws = ws
+	return nil
+}
+
+func execContextRetryOne(c *conn, ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	err := c.reconnect()
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.ws.exec(ctx, query, convertArgs(args), false)
+	if err != nil {
+		return nil, err
+	}
+	return &result{0, res.affectedRowCount()}, nil
+}
+
+func queryContextRetryOne(c *conn, ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	err := c.reconnect()
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.ws.exec(ctx, query, convertArgs(args), false)
 	if err != nil {
 		return nil, err
 	}
