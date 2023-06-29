@@ -117,6 +117,11 @@ func (r *execResponse) value(rowIdx int, colIdx int) (any, error) {
 }
 
 func (ws *websocketConn) exec(ctx context.Context, sql string, sqlParams params, wantRows bool) (*execResponse, error) {
+	deadline, _ := ctx.Deadline()
+	timeout := time.Until(deadline)
+	halfTimeout := timeout / 2
+	ctx, cancel := context.WithTimeout(context.Background(), halfTimeout)
+	defer cancel()
 	requestId := ws.idPool.Get()
 	defer ws.idPool.Put(requestId)
 	stmt := map[string]interface{}{
