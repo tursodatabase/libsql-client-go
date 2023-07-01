@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/base64"
 	"fmt"
 	"strconv"
@@ -158,12 +159,12 @@ func (ws *websocketConn) exec(ctx context.Context, sql string, sqlParams params,
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", driver.ErrBadConn, err.Error())
 	}
 
 	var resp interface{}
 	if err = wsjson.Read(ctx, ws.conn, &resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", driver.ErrBadConn, err.Error())
 	}
 
 	if isErrorResp(resp) {
