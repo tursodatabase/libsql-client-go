@@ -119,13 +119,13 @@ func callSqld(ctx context.Context, url string, jwt string, stmts []string, param
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		var err_response struct {
+		var errResponse struct {
 			Message string `json:"error"`
 		}
-		if err := json.Unmarshal(body, &err_response); err != nil {
+		if err := json.Unmarshal(body, &errResponse); err != nil {
 			return nil, err
 		}
-		return nil, errors.New(err_response.Message)
+		return nil, errors.New(errResponse.Message)
 	}
 
 	var results []httpResults
