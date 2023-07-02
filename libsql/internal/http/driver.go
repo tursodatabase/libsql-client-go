@@ -131,7 +131,7 @@ func convertArgs(args []driver.NamedValue) (params, error) {
 	return parameters, nil
 }
 
-func (c *conn) execute(ctx context.Context, query string, args []driver.NamedValue) ([]httpResults, error) {
+func execute(ctx context.Context, url, jwt, query string, args []driver.NamedValue) ([]httpResults, error) {
 	parameters, err := convertArgs(args)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (c *conn) execute(ctx context.Context, query string, args []driver.NamedVal
 		totalParametersAlreadyUsed += stmtParams.Len()
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, stmts, stmtsParams)
+	rs, err := callSqld(ctx, url, jwt, stmts, stmtsParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
@@ -158,7 +158,7 @@ func (c *conn) execute(ctx context.Context, query string, args []driver.NamedVal
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	rs, err := c.execute(ctx, query, args)
+	rs, err := execute(ctx, c.url, c.jwt, query, args)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	rs, err := c.execute(ctx, query, args)
+	rs, err := execute(ctx, c.url, c.jwt, query, args)
 	if err != nil {
 		return nil, err
 	}
