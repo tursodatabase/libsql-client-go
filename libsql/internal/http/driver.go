@@ -137,9 +137,9 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		return nil, err
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, query, paramaters)
+	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), paramaters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
 
 	if err := assertNoResultWithError(rs, query); err != nil {
@@ -155,9 +155,9 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, err
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, query, paramaters)
+	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), paramaters)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
 	return &rows{rs, 0, 0}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,8 +89,8 @@ type httpResults struct {
 
 type Row []interface{}
 
-func callSqld(ctx context.Context, url string, jwt string, sql string, parameters params) ([]httpResults, error) {
-	rawReq, err := generatePostBody(sql, parameters)
+func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters params) ([]httpResults, error) {
+	rawReq, err := generatePostBody(stmts, parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -122,9 +123,9 @@ func callSqld(ctx context.Context, url string, jwt string, sql string, parameter
 			Message string `json:"error"`
 		}
 		if err := json.Unmarshal(body, &err_response); err != nil {
-			return nil, fmt.Errorf("failed to execute SQL: %s", sql)
+			return nil, err
 		}
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", sql, err_response.Message)
+		return nil, errors.New(err_response.Message)
 	}
 
 	var results []httpResults
@@ -134,17 +135,15 @@ func callSqld(ctx context.Context, url string, jwt string, sql string, parameter
 	}
 
 	if results[0].Error != nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", sql, results[0].Error.Message)
+		return nil, errors.New(results[0].Error.Message)
 	}
 	if results[0].Results == nil {
-		return nil, fmt.Errorf("no results for SQL: %s", sql)
+		return nil, errors.New("no results")
 	}
 	return results, nil
 }
 
-func generatePostBody(sql string, sqlParams params) (*postBody, error) {
-	stmts := splitStatementToPieces(sql)
-
+func generatePostBody(stmts []string, sqlParams params) (*postBody, error) {
 	postBody := postBody{}
 
 	totalParametersAlreadyUsed := 0
