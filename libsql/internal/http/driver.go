@@ -137,7 +137,20 @@ func (c *conn) execute(ctx context.Context, query string, args []driver.NamedVal
 		return nil, err
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), parameters)
+	stmts := splitStatementToPieces(query)
+
+	stmtsParams := make([]params, len(stmts))
+	totalParametersAlreadyUsed := 0
+	for _, stmt := range stmts {
+		stmtParams, err := generateStatementParameters(stmt, parameters, totalParametersAlreadyUsed)
+		if err != nil {
+			return nil, fmt.Errorf("fail to generate statement parameter. statement: %s. error: %v", stmt, err)
+		}
+		stmtsParams = append(stmtsParams, stmtParams)
+		totalParametersAlreadyUsed += stmtParams.Len()
+	}
+
+	rs, err := callSqld(ctx, c.url, c.jwt, stmts, stmtsParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}

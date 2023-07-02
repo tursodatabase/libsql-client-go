@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -89,7 +88,7 @@ type httpResults struct {
 
 type Row []interface{}
 
-func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters params) ([]httpResults, error) {
+func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters []params) ([]httpResults, error) {
 	rawReq, err := generatePostBody(stmts, parameters)
 	if err != nil {
 		return nil, err
@@ -143,17 +142,11 @@ func callSqld(ctx context.Context, url string, jwt string, stmts []string, param
 	return results, nil
 }
 
-func generatePostBody(stmts []string, sqlParams params) (*postBody, error) {
+func generatePostBody(stmts []string, stmtsParams []params) (*postBody, error) {
 	postBody := postBody{}
 
-	totalParametersAlreadyUsed := 0
-	for _, stmt := range stmts {
-		stmtParameters, err := generateStatementParameters(stmt, sqlParams, totalParametersAlreadyUsed)
-		if err != nil {
-			return nil, fmt.Errorf("fail to generate statement parameter. statement: %s. error: %v", stmt, err)
-		}
-		postBody.Statements = append(postBody.Statements, statement{stmt, stmtParameters})
-		totalParametersAlreadyUsed += stmtParameters.Len()
+	for idx, stmt := range stmts {
+		postBody.Statements = append(postBody.Statements, statement{stmt, stmtsParams[idx]})
 	}
 
 	return &postBody, nil
