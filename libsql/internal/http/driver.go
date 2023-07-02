@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
-	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -13,15 +12,6 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/libsql/sqlite-antlr4-parser/sqliteparser"
 )
-
-type rowsProvider interface {
-	SetsCount() int
-	RowsCount(setIdx int) int
-	Columns(setIdx int) []string
-	FieldValue(setIdx, rowIdx int, columnIdx int) driver.Value
-	Error(setIdx int) string
-	HasResult(setIdx int) bool
-}
 
 type httpResultsRowsProvider struct {
 	results []httpResults
@@ -52,55 +42,6 @@ func (r *httpResultsRowsProvider) Error(setIdx int) string {
 
 func (r *httpResultsRowsProvider) HasResult(setIdx int) bool {
 	return r.results[setIdx].Results != nil
-}
-
-type rows struct {
-	result                rowsProvider
-	currentResultSetIndex int
-	currentRowIdx         int
-}
-
-func (r *rows) Columns() []string {
-	return r.result.Columns(r.currentResultSetIndex)
-}
-
-func (r *rows) Close() error {
-	return nil
-}
-
-func (r *rows) Next(dest []driver.Value) error {
-	if r.currentRowIdx == r.result.RowsCount(r.currentResultSetIndex) {
-		return io.EOF
-	}
-	count := len(r.result.Columns(r.currentResultSetIndex))
-	for idx := 0; idx < count; idx++ {
-		dest[idx] = r.result.FieldValue(r.currentResultSetIndex, r.currentRowIdx, idx)
-	}
-	r.currentRowIdx++
-	return nil
-}
-
-func (r *rows) HasNextResultSet() bool {
-	return r.currentResultSetIndex < r.result.SetsCount()-1
-}
-
-func (r *rows) NextResultSet() error {
-	if !r.HasNextResultSet() {
-		return io.EOF
-	}
-
-	r.currentResultSetIndex++
-	r.currentRowIdx = 0
-
-	errStr := r.result.Error(r.currentResultSetIndex)
-	if errStr != "" {
-		return fmt.Errorf("failed to execute statement\n%s", errStr)
-	}
-	if !r.result.HasResult(r.currentResultSetIndex) {
-		return fmt.Errorf("no results for statement")
-	}
-
-	return nil
 }
 
 type conn struct {
@@ -199,7 +140,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, err
 	}
 
-	return &rows{&httpResultsRowsProvider{rs}, 0, 0}, nil
+	return shared.NewRows(&httpResultsRowsProvider{rs}), nil
 }
 
 func assertNoResultWithError(resultSets []httpResults, query string) error {
