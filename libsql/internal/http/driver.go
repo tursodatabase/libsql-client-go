@@ -26,14 +26,54 @@ func (r *result) RowsAffected() (int64, error) {
 	return r.changes, nil
 }
 
+type rowsProvider interface {
+	SetsCount() int
+	RowsCount(setIdx int) int
+	Columns(setIdx int) []string
+	FieldValue(setIdx, rowIdx int, columnIdx int) driver.Value
+	Error(setIdx int) string
+	HasResult(setIdx int) bool
+}
+
+type httpResultsRowsProvider struct {
+	results []httpResults
+}
+
+func (r *httpResultsRowsProvider) SetsCount() int {
+	return len(r.results)
+}
+
+func (r *httpResultsRowsProvider) RowsCount(setIdx int) int {
+	return len(r.results[setIdx].Results.Rows)
+}
+
+func (r *httpResultsRowsProvider) Columns(setIdx int) []string {
+	return r.results[setIdx].Results.Columns
+}
+
+func (r *httpResultsRowsProvider) FieldValue(setIdx, rowIdx, columnIdx int) driver.Value {
+	return r.results[setIdx].Results.Rows[rowIdx][columnIdx]
+}
+
+func (r *httpResultsRowsProvider) Error(setIdx int) string {
+	if r.results[setIdx].Error != nil {
+		return r.results[setIdx].Error.Message
+	}
+	return ""
+}
+
+func (r *httpResultsRowsProvider) HasResult(setIdx int) bool {
+	return r.results[setIdx].Results != nil
+}
+
 type rows struct {
-	resultSets            []httpResults
+	result                rowsProvider
 	currentResultSetIndex int
 	currentRowIdx         int
 }
 
 func (r *rows) Columns() []string {
-	return r.currentResults().Columns
+	return r.result.Columns(r.currentResultSetIndex)
 }
 
 func (r *rows) Close() error {
@@ -41,20 +81,19 @@ func (r *rows) Close() error {
 }
 
 func (r *rows) Next(dest []driver.Value) error {
-	currentResults := r.currentResults()
-	if r.currentRowIdx == len(currentResults.Rows) {
+	if r.currentRowIdx == r.result.RowsCount(r.currentResultSetIndex) {
 		return io.EOF
 	}
-	count := len(currentResults.Rows[r.currentRowIdx])
+	count := len(r.result.Columns(r.currentResultSetIndex))
 	for idx := 0; idx < count; idx++ {
-		dest[idx] = currentResults.Rows[r.currentRowIdx][idx]
+		dest[idx] = r.result.FieldValue(r.currentResultSetIndex, r.currentRowIdx, idx)
 	}
 	r.currentRowIdx++
 	return nil
 }
 
 func (r *rows) HasNextResultSet() bool {
-	return r.currentResultSetIndex < len(r.resultSets)-1
+	return r.currentResultSetIndex < r.result.SetsCount()-1
 }
 
 func (r *rows) NextResultSet() error {
@@ -65,19 +104,15 @@ func (r *rows) NextResultSet() error {
 	r.currentResultSetIndex++
 	r.currentRowIdx = 0
 
-	currentResultSet := r.resultSets[r.currentResultSetIndex]
-	if currentResultSet.Error != nil {
-		return fmt.Errorf("failed to execute statement\n%s", currentResultSet.Error.Message)
+	errStr := r.result.Error(r.currentResultSetIndex)
+	if errStr != "" {
+		return fmt.Errorf("failed to execute statement\n%s", errStr)
 	}
-	if currentResultSet.Results == nil {
+	if !r.result.HasResult(r.currentResultSetIndex) {
 		return fmt.Errorf("no results for statement")
 	}
 
 	return nil
-}
-
-func (r *rows) currentResults() *resultSet {
-	return r.resultSets[r.currentResultSetIndex].Results
 }
 
 type conn struct {
@@ -176,7 +211,7 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		return nil, err
 	}
 
-	return &rows{rs, 0, 0}, nil
+	return &rows{&httpResultsRowsProvider{rs}, 0, 0}, nil
 }
 
 func assertNoResultWithError(resultSets []httpResults, query string) error {
