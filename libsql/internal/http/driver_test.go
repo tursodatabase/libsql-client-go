@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSplitStamentToPieces(t *testing.T) {
+func TestSplitStatementToPieces(t *testing.T) {
 	tests := []struct {
 		name  string
 		value string
