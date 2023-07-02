@@ -150,12 +150,12 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	paramaters, err := convertArgs(args)
+	parameters, err := convertArgs(args)
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), paramaters)
+	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), parameters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
