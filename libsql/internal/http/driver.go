@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"regexp"
 	"sort"
@@ -12,19 +13,6 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/libsql/sqlite-antlr4-parser/sqliteparser"
 )
-
-type result struct {
-	id      int64
-	changes int64
-}
-
-func (r *result) LastInsertId() (int64, error) {
-	return r.id, nil
-}
-
-func (r *result) RowsAffected() (int64, error) {
-	return r.changes, nil
-}
 
 type rowsProvider interface {
 	SetsCount() int
@@ -202,7 +190,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 		return nil, err
 	}
 
-	return &result{0, 0}, nil
+	return shared.NewResult(0, 0), nil
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
