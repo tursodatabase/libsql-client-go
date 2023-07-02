@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"net/http"
 	"time"
@@ -12,64 +13,13 @@ import (
 
 var httpClient = &http.Client{Timeout: 120 * time.Second}
 
-type paramsType int
-
-const (
-	namedParameters paramsType = iota
-	positionalParameters
-)
-
-type params struct {
-	positional []any
-	named      map[string]any
-}
-
-func (p *params) MarshalJSON() ([]byte, error) {
-	if len(p.named) > 0 {
-		return json.Marshal(p.named)
-	}
-	if len(p.positional) > 0 {
-		return json.Marshal(p.positional)
-	}
-	return json.Marshal(make([]any, 0))
-
-}
-
-func NewParams(t paramsType) params {
-	p := params{}
-	switch t {
-	case namedParameters:
-		p.named = make(map[string]any)
-	case positionalParameters:
-		p.positional = make([]any, 0)
-	}
-
-	return p
-}
-
-func (p *params) Len() int {
-	if p.named != nil {
-		return len(p.named)
-	}
-
-	return len(p.positional)
-}
-
-func (p *params) Type() paramsType {
-	if p.named != nil {
-		return namedParameters
-	}
-
-	return positionalParameters
-}
-
 type postBody struct {
 	Statements []statement `json:"statements"`
 }
 
 type statement struct {
-	Query  string `json:"q"`
-	Params params `json:"params"`
+	Query  string        `json:"q"`
+	Params shared.Params `json:"params"`
 }
 
 type resultSet struct {
@@ -88,7 +38,7 @@ type httpResults struct {
 
 type Row []interface{}
 
-func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters []params) ([]httpResults, error) {
+func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters []shared.Params) ([]httpResults, error) {
 	rawReq, err := generatePostBody(stmts, parameters)
 	if err != nil {
 		return nil, err
@@ -142,7 +92,7 @@ func callSqld(ctx context.Context, url string, jwt string, stmts []string, param
 	return results, nil
 }
 
-func generatePostBody(stmts []string, stmtsParams []params) (*postBody, error) {
+func generatePostBody(stmts []string, stmtsParams []shared.Params) (*postBody, error) {
 	postBody := postBody{}
 
 	for idx, stmt := range stmts {
