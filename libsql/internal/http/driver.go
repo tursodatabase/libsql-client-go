@@ -131,7 +131,7 @@ func convertArgs(args []driver.NamedValue) (params, error) {
 	return parameters, nil
 }
 
-func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+func (c *conn) execute(ctx context.Context, query string, args []driver.NamedValue) ([]httpResults, error) {
 	parameters, err := convertArgs(args)
 	if err != nil {
 		return nil, err
@@ -140,6 +140,14 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), parameters)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
+	}
+	return rs, nil
+}
+
+func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	rs, err := c.execute(ctx, query, args)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := assertNoResultWithError(rs, query); err != nil {
@@ -150,15 +158,11 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	parameters, err := convertArgs(args)
+	rs, err := c.execute(ctx, query, args)
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := callSqld(ctx, c.url, c.jwt, splitStatementToPieces(query), parameters)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
-	}
 	return &rows{rs, 0, 0}, nil
 }
 
