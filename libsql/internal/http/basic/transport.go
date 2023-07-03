@@ -127,7 +127,7 @@ func unmarshalResponse(body []byte, result *[]httpResults) error {
 			Results: alternativeResult.Results,
 			Error:   &httpErrObject{Message: alternativeResult.Error}})
 	}
-	result = &convertedResult
+	*result = convertedResult
 
 	return nil
 }
