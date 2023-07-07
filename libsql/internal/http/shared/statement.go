@@ -11,10 +11,6 @@ import (
 	"strings"
 )
 
-type Params interface {
-	MarshalJSON() ([]byte, error)
-}
-
 func ParseStatement(sql string, args []driver.NamedValue) ([]string, []Params, error) {
 	parameters, err := convertArgs(args)
 	if err != nil {
@@ -25,12 +21,12 @@ func ParseStatement(sql string, args []driver.NamedValue) ([]string, []Params, e
 
 	stmtsParams := make([]Params, len(stmts))
 	totalParametersAlreadyUsed := 0
-	for _, stmt := range stmts {
+	for idx, stmt := range stmts {
 		stmtParams, err := generateStatementParameters(stmt, parameters, totalParametersAlreadyUsed)
 		if err != nil {
 			return nil, nil, fmt.Errorf("fail to generate statement parameter. statement: %s. error: %v", stmt, err)
 		}
-		stmtsParams = append(stmtsParams, &stmtParams)
+		stmtsParams[idx] = stmtParams
 		totalParametersAlreadyUsed += stmtParams.Len()
 	}
 	return stmts, stmtsParams, nil
@@ -43,12 +39,12 @@ const (
 	positionalParameters
 )
 
-type params struct {
+type Params struct {
 	positional []any
 	named      map[string]any
 }
 
-func (p *params) MarshalJSON() ([]byte, error) {
+func (p *Params) MarshalJSON() ([]byte, error) {
 	if len(p.named) > 0 {
 		return json.Marshal(p.named)
 	}
@@ -58,7 +54,15 @@ func (p *params) MarshalJSON() ([]byte, error) {
 	return json.Marshal(make([]any, 0))
 }
 
-func (p *params) Len() int {
+func (p *Params) Named() map[string]any {
+	return p.named
+}
+
+func (p *Params) Positional() []any {
+	return p.positional
+}
+
+func (p *Params) Len() int {
 	if p.named != nil {
 		return len(p.named)
 	}
@@ -66,7 +70,7 @@ func (p *params) Len() int {
 	return len(p.positional)
 }
 
-func (p *params) Type() paramsType {
+func (p *Params) Type() paramsType {
 	if p.named != nil {
 		return namedParameters
 	}
@@ -74,8 +78,8 @@ func (p *params) Type() paramsType {
 	return positionalParameters
 }
 
-func NewParams(t paramsType) params {
-	p := params{}
+func NewParams(t paramsType) Params {
+	p := Params{}
 	switch t {
 	case namedParameters:
 		p.named = make(map[string]any)
@@ -124,7 +128,7 @@ func getParamType(arg *driver.NamedValue) paramsType {
 	return namedParameters
 }
 
-func convertArgs(args []driver.NamedValue) (params, error) {
+func convertArgs(args []driver.NamedValue) (Params, error) {
 	if len(args) == 0 {
 		return NewParams(positionalParameters), nil
 	}
@@ -141,7 +145,7 @@ func convertArgs(args []driver.NamedValue) (params, error) {
 	parameters := NewParams(parametersType)
 	for _, arg := range sortedArgs {
 		if parametersType != getParamType(arg) {
-			return params{}, fmt.Errorf("driver does not accept positional and named parameters at the same time")
+			return Params{}, fmt.Errorf("driver does not accept positional and named parameters at the same time")
 		}
 
 		switch parametersType {
@@ -154,10 +158,10 @@ func convertArgs(args []driver.NamedValue) (params, error) {
 	return parameters, nil
 }
 
-func generateStatementParameters(stmt string, queryParams params, positionalParametersOffset int) (params, error) {
+func generateStatementParameters(stmt string, queryParams Params, positionalParametersOffset int) (Params, error) {
 	nameParams, positionalParamsCount, err := extractParameters(stmt)
 	if err != nil {
-		return params{}, err
+		return Params{}, err
 	}
 
 	stmtParams := NewParams(queryParams.Type())
@@ -165,7 +169,7 @@ func generateStatementParameters(stmt string, queryParams params, positionalPara
 	switch queryParams.Type() {
 	case positionalParameters:
 		if positionalParametersOffset+positionalParamsCount > len(queryParams.positional) {
-			return params{}, fmt.Errorf("missing positional parameters")
+			return Params{}, fmt.Errorf("missing positional parameters")
 		}
 		stmtParams.positional = queryParams.positional[positionalParametersOffset : positionalParametersOffset+positionalParamsCount]
 	case namedParameters:
