@@ -80,16 +80,52 @@ func runCounterExample(dbPath string) {
 	exec(ctx, db, incCounterStatementNamedArgs3, sql.Named("country", "FI"), sql.Named("city", "HEL"))
 
 	// try prepared statements
-	stmt, err := db.Prepare("UPDATE counter SET value = value + 1 WHERE country = ? AND city = ?")
-	defer stmt.Close()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to prepare statement %s: %s", incCounterStatementPositionalArgs, err)
-		os.Exit(1)
+	{
+		stmt, err := db.Prepare("UPDATE counter SET value = value + 1 WHERE country = ? AND city = ?")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to prepare statement %s: %s", incCounterStatementPositionalArgs, err)
+			os.Exit(1)
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec("FI", "HEL")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to execute prepared statement %s for FI: %s", incCounterStatementPositionalArgs, err)
+			os.Exit(1)
+		}
+		_, err = stmt.Exec("PL", "WAW")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to execute prepared statement %s for PL: %s", incCounterStatementPositionalArgs, err)
+			os.Exit(1)
+		}
 	}
-	_, err = stmt.Exec("FI", "HEL")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to execute statement %s: %s", incCounterStatementPositionalArgs, err)
-		os.Exit(1)
+	{
+		stmt, err := db.Prepare("SELECT * FROM counter")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to prepare statement %s: %s", "SELECT * FROM counter", err)
+			os.Exit(1)
+		}
+		defer stmt.Close()
+		rows, err := stmt.Query()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to execute prepared statement %s: %s", "SELECT * FROM counter", err)
+			os.Exit(1)
+		}
+		for rows.Next() {
+			var row struct {
+				country string
+				city    string
+				value   int
+			}
+			if err := rows.Scan(&row.country, &row.city, &row.value); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to scan row: %s", err)
+				os.Exit(1)
+			}
+			fmt.Println(row)
+		}
+		if err := rows.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "errors from query: %s", err)
+			os.Exit(1)
+		}
 	}
 
 	rows := query(ctx, db, "SELECT * FROM counter")

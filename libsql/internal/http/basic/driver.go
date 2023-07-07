@@ -60,7 +60,7 @@ func (c *conn) Begin() (driver.Tx, error) {
 }
 
 func execute(ctx context.Context, url, jwt, query string, args []driver.NamedValue) ([]httpResults, error) {
-	stmts, params, err := shared.ParseStatement(query, args)
+	stmts, params, err := shared.ParseStatementAndArgs(query, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}

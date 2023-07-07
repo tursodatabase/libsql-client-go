@@ -17,8 +17,22 @@ func CloseStream() StreamRequest {
 }
 
 func ExecuteStream(sql string, params shared.Params, wantRows bool) (*StreamRequest, error) {
-	stmt, err := createStmt(sql, params, wantRows)
-	if err != nil {
+	stmt := &Stmt{
+		Sql:      &sql,
+		WantRows: wantRows,
+	}
+	if err := stmt.AddArgs(params); err != nil {
+		return nil, err
+	}
+	return &StreamRequest{Type: "execute", Stmt: stmt}, nil
+}
+
+func ExecuteStoredStream(sqlId int32, params shared.Params, wantRows bool) (*StreamRequest, error) {
+	stmt := &Stmt{
+		SqlId:    &sqlId,
+		WantRows: wantRows,
+	}
+	if err := stmt.AddArgs(params); err != nil {
 		return nil, err
 	}
 	return &StreamRequest{Type: "execute", Stmt: stmt}, nil
@@ -27,8 +41,11 @@ func ExecuteStream(sql string, params shared.Params, wantRows bool) (*StreamRequ
 func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamRequest, error) {
 	batch := &Batch{}
 	for idx, sql := range sqls {
-		stmt, err := createStmt(sql, params[idx], wantRows)
-		if err != nil {
+		stmt := &Stmt{
+			Sql:      &sql,
+			WantRows: wantRows,
+		}
+		if err := stmt.AddArgs(params[idx]); err != nil {
 			return nil, err
 		}
 		batch.Add(*stmt)
@@ -36,10 +53,7 @@ func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamR
 	return &StreamRequest{Type: "batch", Batch: batch}, nil
 }
 
-func createStmt(sql string, params shared.Params, wantRows bool) (*Stmt, error) {
-	if len(params.Named()) > 0 {
-		return StmtWithNamedArgs(sql, params.Named(), wantRows)
-	} else {
-		return StmtWithPositionalArgs(sql, params.Positional(), wantRows)
-	}
+func StoreSqlStream(sql string) StreamRequest {
+	var sqlId int32 = 0
+	return StreamRequest{Type: "store_sql", Sql: &sql, SqlId: &sqlId}
 }

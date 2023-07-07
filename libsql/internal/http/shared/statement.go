@@ -11,8 +11,27 @@ import (
 	"strings"
 )
 
-func ParseStatement(sql string, args []driver.NamedValue) ([]string, []Params, error) {
-	parameters, err := convertArgs(args)
+type ParamsInfo struct {
+	NamedParameters           []string
+	PositionalParametersCount int
+}
+
+func ParseStatement(sql string) ([]string, []ParamsInfo, error) {
+	stmts := splitStatementToPieces(sql)
+
+	stmtsParams := make([]ParamsInfo, len(stmts))
+	for idx, stmt := range stmts {
+		nameParams, positionalParamsCount, err := extractParameters(stmt)
+		if err != nil {
+			return nil, nil, err
+		}
+		stmtsParams[idx] = ParamsInfo{nameParams, positionalParamsCount}
+	}
+	return stmts, stmtsParams, nil
+}
+
+func ParseStatementAndArgs(sql string, args []driver.NamedValue) ([]string, []Params, error) {
+	parameters, err := ConvertArgs(args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -128,7 +147,7 @@ func getParamType(arg *driver.NamedValue) paramsType {
 	return namedParameters
 }
 
-func convertArgs(args []driver.NamedValue) (Params, error) {
+func ConvertArgs(args []driver.NamedValue) (Params, error) {
 	if len(args) == 0 {
 		return NewParams(positionalParameters), nil
 	}

@@ -1,7 +1,10 @@
 package hrana
 
+import "github.com/libsql/libsql-client-go/libsql/internal/http/shared"
+
 type Stmt struct {
-	Sql       string     `json:"sql"`
+	Sql       *string    `json:"sql,omitempty"`
+	SqlId     *int32     `json:"sql_id,omitempty"`
 	Args      []Value    `json:"args,omitempty"`
 	NamedArgs []NamedArg `json:"named_args,omitempty"`
 	WantRows  bool       `json:"want_rows"`
@@ -12,36 +15,34 @@ type NamedArg struct {
 	Value Value  `json:"value"`
 }
 
-func ToStmt(sql string, wantRows bool) *Stmt {
-	return &Stmt{
-		Sql:      sql,
-		WantRows: wantRows,
+func (s *Stmt) AddArgs(params shared.Params) error {
+	if len(params.Named()) > 0 {
+		return s.AddNamedArgs(params.Named())
+	} else {
+		return s.AddPositionalArgs(params.Positional())
 	}
 }
 
-func StmtWithPositionalArgs(sql string, args []any, wantRows bool) (*Stmt, error) {
+func (s *Stmt) AddPositionalArgs(args []any) error {
 	argValues := make([]Value, len(args))
 	for idx := range args {
 		var err error
 		if argValues[idx], err = ToValue(args[idx]); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return &Stmt{
-		Sql:      sql,
-		Args:     argValues,
-		WantRows: wantRows,
-	}, nil
+	s.Args = argValues
+	return nil
 }
 
-func StmtWithNamedArgs(sql string, args map[string]any, wantRows bool) (*Stmt, error) {
+func (s *Stmt) AddNamedArgs(args map[string]any) error {
 	argValues := make([]NamedArg, len(args))
 	idx := 0
 	for key, value := range args {
 		var err error
 		var v Value
 		if v, err = ToValue(value); err != nil {
-			return nil, err
+			return err
 		}
 		argValues[idx] = NamedArg{
 			Name:  key,
@@ -49,9 +50,6 @@ func StmtWithNamedArgs(sql string, args map[string]any, wantRows bool) (*Stmt, e
 		}
 		idx++
 	}
-	return &Stmt{
-		Sql:       sql,
-		NamedArgs: argValues,
-		WantRows:  wantRows,
-	}, nil
+	s.NamedArgs = argValues
+	return nil
 }
