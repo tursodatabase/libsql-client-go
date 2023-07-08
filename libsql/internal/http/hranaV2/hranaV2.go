@@ -3,6 +3,7 @@ package hranaV2
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -33,21 +34,19 @@ func IsSupported(url, jwt string) bool {
 }
 
 func Connect(url, jwt string) driver.Conn {
-	return &hranaV2Conn{url, jwt}
+	return &hranaV2Conn{url, jwt, "", 0}
 }
 
 type hranaV2Stmt struct {
-	jwt      string
-	url      string
-	baton    string
+	conn     *hranaV2Conn
 	numInput int
+	sqlId    int32
 }
 
 func (s *hranaV2Stmt) Close() error {
-	msg := hrana.PipelineRequest{}
-	msg.Baton = s.baton
-	msg.Add(hrana.CloseStream())
-	_, err := sendPipelineRequest(context.Background(), s.jwt, s.url, &msg)
+	var req hrana.PipelineRequest
+	req.Add(hrana.CloseStoredSqlStream(s.sqlId))
+	_, err := s.conn.sendPipelineRequest(context.Background(), &req)
 	return err
 }
 
@@ -76,21 +75,19 @@ func (s *hranaV2Stmt) Query(args []driver.Value) (driver.Rows, error) {
 
 func (s *hranaV2Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
 	msg := hrana.PipelineRequest{}
-	msg.Baton = s.baton
 	params, err := shared.ConvertArgs(args)
 	if err != nil {
 		return nil, err
 	}
-	executeStream, err := hrana.ExecuteStoredStream(0, params, false)
+	executeStream, err := hrana.ExecuteStoredStream(s.sqlId, params, false)
 	if err != nil {
 		return nil, err
 	}
 	msg.Add(*executeStream)
-	result, err := sendPipelineRequest(ctx, s.jwt, s.url, &msg)
+	result, err := s.conn.sendPipelineRequest(ctx, &msg)
 	if err != nil {
 		return nil, err
 	}
-	s.baton = result.Baton
 	if result.Results[0].Error != nil {
 		return nil, errors.New(result.Results[0].Error.Message)
 	}
@@ -106,21 +103,19 @@ func (s *hranaV2Stmt) ExecContext(ctx context.Context, args []driver.NamedValue)
 
 func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	msg := hrana.PipelineRequest{}
-	msg.Baton = s.baton
 	params, err := shared.ConvertArgs(args)
 	if err != nil {
 		return nil, err
 	}
-	executeStream, err := hrana.ExecuteStoredStream(0, params, true)
+	executeStream, err := hrana.ExecuteStoredStream(s.sqlId, params, true)
 	if err != nil {
 		return nil, err
 	}
 	msg.Add(*executeStream)
-	result, err := sendPipelineRequest(ctx, s.jwt, s.url, &msg)
+	result, err := s.conn.sendPipelineRequest(ctx, &msg)
 	if err != nil {
 		return nil, err
 	}
-	s.baton = result.Baton
 	if result.Results[0].Error != nil {
 		return nil, errors.New(result.Results[0].Error.Message)
 	}
@@ -135,8 +130,10 @@ func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue
 }
 
 type hranaV2Conn struct {
-	url string
-	jwt string
+	url       string
+	jwt       string
+	baton     string
+	nextSqlId int32
 }
 
 func (h *hranaV2Conn) Prepare(query string) (driver.Stmt, error) {
@@ -156,20 +153,16 @@ func (h *hranaV2Conn) PrepareContext(ctx context.Context, query string) (driver.
 		numInput = paramInfos[0].PositionalParametersCount
 	}
 	var req hrana.PipelineRequest
+	sqlId := h.nextSqlId
+	req.Add(hrana.StoreSqlStream(query, sqlId))
+	h.nextSqlId++
 
-	req.Add(hrana.StoreSqlStream(query))
-
-	res, err := sendPipelineRequest(ctx, h.jwt, h.url, &req)
+	_, err = h.sendPipelineRequest(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
 
-	url := h.url
-	if res.BaseUrl != "" {
-		url = res.BaseUrl
-	}
-
-	return &hranaV2Stmt{h.jwt, url, res.Baton, numInput}, nil
+	return &hranaV2Stmt{h, numInput, sqlId}, nil
 }
 
 func (h *hranaV2Conn) Close() error {
@@ -177,23 +170,53 @@ func (h *hranaV2Conn) Close() error {
 }
 
 func (h *hranaV2Conn) Begin() (driver.Tx, error) {
-	return nil, fmt.Errorf("begin method not implemented")
+	return h.BeginTx(context.Background(), driver.TxOptions{})
 }
 
-func sendPipelineRequest(ctx context.Context, jwt, url string, msg *hrana.PipelineRequest) (*hrana.PipelineResponse, error) {
+type hranaV2Tx struct {
+	conn *hranaV2Conn
+}
+
+func (h hranaV2Tx) Commit() error {
+	_, err := h.conn.ExecContext(context.Background(), "COMMIT", nil)
+	return err
+}
+
+func (h hranaV2Tx) Rollback() error {
+	_, err := h.conn.ExecContext(context.Background(), "ROLLBACK", nil)
+	return err
+}
+
+func (h *hranaV2Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if opts.ReadOnly {
+		return nil, fmt.Errorf("read only transactions are not supported")
+	}
+	if opts.Isolation != driver.IsolationLevel(sql.LevelDefault) {
+		return nil, fmt.Errorf("isolation level %d is not supported", opts.Isolation)
+	}
+	_, err := h.ExecContext(ctx, "BEGIN", nil)
+	if err != nil {
+		return nil, err
+	}
+	return &hranaV2Tx{h}, nil
+}
+
+func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest) (*hrana.PipelineResponse, error) {
+	if h.baton != "" {
+		msg.Baton = h.baton
+	}
 	reqBody, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
-
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", url+"/v2/pipeline", bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", h.url+"/v2/pipeline", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, err
 	}
-	if len(jwt) > 0 {
-		req.Header.Set("Authorization", "Bearer "+jwt)
+	if len(h.jwt) > 0 {
+		req.Header.Set("Authorization", "Bearer "+h.jwt)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -217,6 +240,10 @@ func sendPipelineRequest(ctx context.Context, jwt, url string, msg *hrana.Pipeli
 	if err = json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
+	h.baton = result.Baton
+	if result.BaseUrl != "" {
+		h.url = result.BaseUrl
+	}
 	return &result, nil
 }
 
@@ -239,15 +266,14 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 		}
 		msg.Add(*batchStream)
 	}
-	msg.Add(hrana.CloseStream())
 
-	result, err := sendPipelineRequest(ctx, h.jwt, h.url, msg)
+	result, err := h.sendPipelineRequest(ctx, msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
 
 	if result.Results[0].Error != nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, *result.Results[0].Error)
+		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, result.Results[0].Error.Message)
 	}
 	if result.Results[0].Response == nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "no response received")

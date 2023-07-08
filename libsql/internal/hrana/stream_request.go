@@ -53,7 +53,10 @@ func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamR
 	return &StreamRequest{Type: "batch", Batch: batch}, nil
 }
 
-func StoreSqlStream(sql string) StreamRequest {
-	var sqlId int32 = 0
+func StoreSqlStream(sql string, sqlId int32) StreamRequest {
 	return StreamRequest{Type: "store_sql", Sql: &sql, SqlId: &sqlId}
+}
+
+func CloseStoredSqlStream(sqlId int32) StreamRequest {
+	return StreamRequest{Type: "close_sql", SqlId: &sqlId}
 }
