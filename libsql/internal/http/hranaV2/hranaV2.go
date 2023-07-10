@@ -34,7 +34,7 @@ func IsSupported(url, jwt string) bool {
 }
 
 func Connect(url, jwt string) driver.Conn {
-	return &hranaV2Conn{url, jwt, "", 0}
+	return &hranaV2Conn{url, jwt, "", 0, false}
 }
 
 type hranaV2Stmt struct {
@@ -130,10 +130,11 @@ func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue
 }
 
 type hranaV2Conn struct {
-	url       string
-	jwt       string
-	baton     string
-	nextSqlId int32
+	url          string
+	jwt          string
+	baton        string
+	nextSqlId    int32
+	streamClosed bool
 }
 
 func (h *hranaV2Conn) Prepare(query string) (driver.Stmt, error) {
@@ -202,6 +203,10 @@ func (h *hranaV2Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (drive
 }
 
 func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest) (*hrana.PipelineResponse, error) {
+	if h.streamClosed {
+		// If the stream is closed, we can't send any more requests using this connection.
+		return nil, fmt.Errorf("stream is closed: %w", driver.ErrBadConn)
+	}
 	if h.baton != "" {
 		msg.Baton = h.baton
 	}
@@ -228,6 +233,8 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
+		h.streamClosed = true
 		var errResponse struct {
 			Message string `json:"error"`
 		}
@@ -241,6 +248,10 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 		return nil, err
 	}
 	h.baton = result.Baton
+	if result.Baton == "" {
+		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
+		h.streamClosed = true
+	}
 	if result.BaseUrl != "" {
 		h.url = result.BaseUrl
 	}
