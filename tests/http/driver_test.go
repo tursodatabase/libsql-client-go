@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"os"
 	"runtime/debug"
@@ -69,7 +70,7 @@ type Table struct {
 
 func (db Database) createTable() Table {
 	name := "test_" + fmt.Sprint(rand.Int()) + "_" + time.Now().Format("20060102150405")
-	db.exec("CREATE TABLE " + name + " (a int, b text)")
+	db.exec("CREATE TABLE " + name + " (a int, b int)")
 	db.t.Cleanup(func() {
 		db.exec("DROP TABLE " + name)
 	})
@@ -78,13 +79,13 @@ func (db Database) createTable() Table {
 
 func (t Table) insertRows(start, count int) {
 	t.insertRowsInternal(start, count, func(i int) sql.Result {
-		return t.db.exec("INSERT INTO " + t.name + " (a, b) VALUES (" + fmt.Sprint(i) + ", '" + fmt.Sprint(i) + "')")
+		return t.db.exec("INSERT INTO " + t.name + " (a, b) VALUES (" + fmt.Sprint(i) + ", " + fmt.Sprint(i) + ")")
 	})
 }
 
 func (t Table) insertRowsWithArgs(start, count int) {
 	t.insertRowsInternal(start, count, func(i int) sql.Result {
-		return t.db.exec("INSERT INTO "+t.name+" (a, b) VALUES (?, ?)", i, fmt.Sprint(i))
+		return t.db.exec("INSERT INTO "+t.name+" (a, b) VALUES (?, ?)", i, i)
 	})
 }
 
@@ -379,4 +380,68 @@ func TestDataTypes(t *testing.T) {
 	case nullFloat.Valid:
 		t.Error("null float is valid")
 	}
+}
+
+func TestConcurrentOnSingleConnection(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	t1 := db.createTable()
+	t2 := db.createTable()
+	t3 := db.createTable()
+	t1.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t1.db.exec("INSERT INTO "+t1.name+" VALUES(?, ?)", i, i)
+	})
+	t2.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t2.db.exec("INSERT INTO "+t2.name+" VALUES(?, ?)", i, -1*i)
+	})
+	t3.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t3.db.exec("INSERT INTO "+t3.name+" VALUES(?, ?)", i, 0)
+	})
+	g, ctx := errgroup.WithContext(context.Background())
+	conn, err := db.Conn(context.Background())
+	db.t.FatalOnError(err)
+	worker := func(t Table, check func(int) error) func() error {
+		return func() error {
+			for i := 1; i < 100; i++ {
+				rows, err := conn.QueryContext(ctx, "SELECT b FROM "+t.name)
+				if err != nil {
+					return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+				}
+				for rows.Next() {
+					var v int
+					err := rows.Scan(&v)
+					if err != nil {
+						return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+					}
+					if err := check(v); err != nil {
+						return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+					}
+				}
+				err = rows.Err()
+				if err != nil {
+					return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+				}
+			}
+			return nil
+		}
+	}
+	g.Go(worker(t1, func(v int) error {
+		if v <= 0 {
+			return fmt.Errorf("got non-positive value from table1: %d", v)
+		}
+		return nil
+	}))
+	g.Go(worker(t2, func(v int) error {
+		if v >= 0 {
+			return fmt.Errorf("got non-negative value from table2: %d", v)
+		}
+		return nil
+	}))
+	g.Go(worker(t3, func(v int) error {
+		if v != 0 {
+			return fmt.Errorf("got non-zero value from table3: %d", v)
+		}
+		return nil
+	}))
+	db.t.FatalOnError(g.Wait())
 }
