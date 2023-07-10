@@ -114,12 +114,12 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 
 	if u.Scheme == "libsql" {
 		if tls {
-			u.Scheme = "wss"
+			u.Scheme = "https"
 		} else {
 			if u.Port() == "" {
 				return nil, fmt.Errorf("libsql:// URL with ?tls=0 must specify an explicit port")
 			}
-			u.Scheme = "ws"
+			u.Scheme = "http"
 		}
 	}
 
