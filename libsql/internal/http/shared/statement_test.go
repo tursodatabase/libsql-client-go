@@ -1,4 +1,4 @@
-package http
+package shared
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSplitStamentToPieces(t *testing.T) {
+func TestSplitStatementToPieces(t *testing.T) {
 	tests := []struct {
 		name  string
 		value string
@@ -34,22 +34,22 @@ func TestSplitStamentToPieces(t *testing.T) {
 			want:  []string{"select 1"},
 		},
 		{
-			name:  "MultpleCorrectStatements",
+			name:  "MultipleCorrectStatements",
 			value: "select 1; INSERT INTO counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?; select 2",
 			want:  []string{"select 1", "INSERT INTO counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?", "select 2"},
 		},
 		{
-			name:  "MultpleWrongStatements",
+			name:  "MultipleWrongStatements",
 			value: "select from table; INSERT counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?; create something",
 			want:  []string{"select from table", "INSERT counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?", "create something"},
 		},
 		{
-			name:  "MultpleWrongTokens",
+			name:  "MultipleWrongTokens",
 			value: "sdfasdfigosdfg sadfgsd ggsadgf; sdfasdfasd; 1230kfvcasd; 213 dsf s 0 fs229dt",
 			want:  []string{"sdfasdfigosdfg sadfgsd ggsadgf", "sdfasdfasd", "1230kfvcasd", "213 dsf s 0 fs229dt"},
 		},
 		{
-			name:  "MultpleSemicolonsBetweenStatements",
+			name:  "MultipleSemicolonsBetweenStatements",
 			value: "select 1;;;;;; ;;; ; ; ; ; select 2",
 			want:  []string{"select 1", "select 2"},
 		},
@@ -88,7 +88,7 @@ func TestExtractParameters(t *testing.T) {
 			nameParams: []string{"column", "table"},
 		},
 		{
-			name:       "RepetedNamedParamer",
+			name:       "RepeatedNamedParameter",
 			value:      "select :number, :number",
 			nameParams: []string{"number"},
 		},

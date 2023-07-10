@@ -1,10 +1,11 @@
-package http
+package basic
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"net/http"
 	"time"
@@ -12,64 +13,13 @@ import (
 
 var httpClient = &http.Client{Timeout: 120 * time.Second}
 
-type paramsType int
-
-const (
-	namedParameters paramsType = iota
-	positionalParameters
-)
-
-type params struct {
-	positional []any
-	named      map[string]any
-}
-
-func (p *params) MarshalJSON() ([]byte, error) {
-	if len(p.named) > 0 {
-		return json.Marshal(p.named)
-	}
-	if len(p.positional) > 0 {
-		return json.Marshal(p.positional)
-	}
-	return json.Marshal(make([]any, 0))
-
-}
-
-func NewParams(t paramsType) params {
-	p := params{}
-	switch t {
-	case namedParameters:
-		p.named = make(map[string]any)
-	case positionalParameters:
-		p.positional = make([]any, 0)
-	}
-
-	return p
-}
-
-func (p *params) Len() int {
-	if p.named != nil {
-		return len(p.named)
-	}
-
-	return len(p.positional)
-}
-
-func (p *params) Type() paramsType {
-	if p.named != nil {
-		return namedParameters
-	}
-
-	return positionalParameters
-}
-
 type postBody struct {
 	Statements []statement `json:"statements"`
 }
 
 type statement struct {
-	Query  string `json:"q"`
-	Params params `json:"params"`
+	Query  string        `json:"q"`
+	Params shared.Params `json:"params"`
 }
 
 type resultSet struct {
@@ -88,8 +38,8 @@ type httpResults struct {
 
 type Row []interface{}
 
-func callSqld(ctx context.Context, url string, jwt string, sql string, parameters params) ([]httpResults, error) {
-	rawReq, err := generatePostBody(sql, parameters)
+func callSqld(ctx context.Context, url string, jwt string, stmts []string, parameters []shared.Params) ([]httpResults, error) {
+	rawReq, err := generatePostBody(stmts, parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -118,13 +68,13 @@ func callSqld(ctx context.Context, url string, jwt string, sql string, parameter
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		var err_response struct {
+		var errResponse struct {
 			Message string `json:"error"`
 		}
-		if err := json.Unmarshal(body, &err_response); err != nil {
-			return nil, fmt.Errorf("failed to execute SQL: %s", sql)
+		if err := json.Unmarshal(body, &errResponse); err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", sql, err_response.Message)
+		return nil, errors.New(errResponse.Message)
 	}
 
 	var results []httpResults
@@ -134,27 +84,19 @@ func callSqld(ctx context.Context, url string, jwt string, sql string, parameter
 	}
 
 	if results[0].Error != nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", sql, results[0].Error.Message)
+		return nil, errors.New(results[0].Error.Message)
 	}
 	if results[0].Results == nil {
-		return nil, fmt.Errorf("no results for SQL: %s", sql)
+		return nil, errors.New("no results")
 	}
 	return results, nil
 }
 
-func generatePostBody(sql string, sqlParams params) (*postBody, error) {
-	stmts := splitStatementToPieces(sql)
-
+func generatePostBody(stmts []string, stmtsParams []shared.Params) (*postBody, error) {
 	postBody := postBody{}
 
-	totalParametersAlreadyUsed := 0
-	for _, stmt := range stmts {
-		stmtParameters, err := generateStatementParameters(stmt, sqlParams, totalParametersAlreadyUsed)
-		if err != nil {
-			return nil, fmt.Errorf("fail to generate statement parameter. statement: %s. error: %v", stmt, err)
-		}
-		postBody.Statements = append(postBody.Statements, statement{stmt, stmtParameters})
-		totalParametersAlreadyUsed += stmtParameters.Len()
+	for idx, stmt := range stmts {
+		postBody.Statements = append(postBody.Statements, statement{stmt, stmtsParams[idx]})
 	}
 
 	return &postBody, nil
@@ -185,7 +127,7 @@ func unmarshalResponse(body []byte, result *[]httpResults) error {
 			Results: alternativeResult.Results,
 			Error:   &httpErrObject{Message: alternativeResult.Error}})
 	}
-	result = &convertedResult
+	*result = convertedResult
 
 	return nil
 }
