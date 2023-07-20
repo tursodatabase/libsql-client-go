@@ -4,11 +4,12 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/libsql/sqlite-antlr4-parser/sqliteparser"
 	"regexp"
 	"sort"
-	"strings"
+
+	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/libsql/sqlite-antlr4-parser/sqliteparser"
+	"github.com/libsql/sqlite-antlr4-parser/sqliteparserutils"
 )
 
 type ParamsInfo struct {
@@ -17,7 +18,7 @@ type ParamsInfo struct {
 }
 
 func ParseStatement(sql string) ([]string, []ParamsInfo, error) {
-	stmts := splitStatementToPieces(sql)
+	stmts := sqliteparserutils.SplitStatement(sql)
 
 	stmtsParams := make([]ParamsInfo, len(stmts))
 	for idx, stmt := range stmts {
@@ -36,7 +37,7 @@ func ParseStatementAndArgs(sql string, args []driver.NamedValue) ([]string, []Pa
 		return nil, nil, err
 	}
 
-	stmts := splitStatementToPieces(sql)
+	stmts := sqliteparserutils.SplitStatement(sql)
 
 	stmtsParams := make([]Params, len(stmts))
 	totalParametersAlreadyUsed := 0
@@ -107,37 +108,6 @@ func NewParams(t paramsType) Params {
 	}
 
 	return p
-}
-
-func splitStatementToPieces(statementsString string) (pieces []string) {
-	statementStream := antlr.NewInputStream(statementsString)
-	sqliteparser.NewSQLiteLexer(statementStream)
-	lexer := sqliteparser.NewSQLiteLexer(statementStream)
-
-	allTokens := lexer.GetAllTokens()
-
-	statements := make([]string, 0, 8)
-
-	var currentStatement string
-	for _, token := range allTokens {
-		tokenType := token.GetTokenType()
-		if tokenType == sqliteparser.SQLiteLexerSCOL {
-			currentStatement = strings.TrimSpace(currentStatement)
-			if currentStatement != "" {
-				statements = append(statements, currentStatement)
-				currentStatement = ""
-			}
-		} else {
-			currentStatement += token.GetText()
-		}
-	}
-
-	currentStatement = strings.TrimSpace(currentStatement)
-	if currentStatement != "" {
-		statements = append(statements, currentStatement)
-	}
-
-	return statements
 }
 
 func getParamType(arg *driver.NamedValue) paramsType {
