@@ -248,7 +248,7 @@ func extractParameters(stmt string) (nameParams []string, positionalParamsCount 
 }
 
 func isPositionalParameter(param string) (ok bool, err error) {
-	re := regexp.MustCompile("\\?([0-9]*).*")
+	re := regexp.MustCompile(`\?([0-9]*).*`)
 	match := re.FindSubmatch([]byte(param))
 	if match == nil {
 		return false, nil

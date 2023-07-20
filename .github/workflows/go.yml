@@ -1,0 +1,50 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      sqld:
+        image: ghcr.io/libsql/sqld:latest
+        ports:
+          - 8080:8080
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Format
+        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+
+      - name: Install dependencies
+        run: go get ./...
+
+      - name: Vet
+        run: go vet -v ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
+        env:
+          LIBSQL_TEST_DB_URL: "http://127.0.0.1:8080"
