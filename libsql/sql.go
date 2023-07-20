@@ -107,7 +107,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 
-	for name, _ := range query {
+	for name := range query {
 		return nil, fmt.Errorf("unknown query parameter %#v", name)
 	}
 	u.RawQuery = ""
