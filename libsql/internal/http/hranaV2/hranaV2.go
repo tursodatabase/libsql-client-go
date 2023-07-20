@@ -369,10 +369,7 @@ func (p *StmtResultRowsProvider) Error(setIdx int) string {
 }
 
 func (p *StmtResultRowsProvider) HasResult(setIdx int) bool {
-	if setIdx != 0 {
-		return false
-	}
-	return true
+	return setIdx == 0
 }
 
 type BatchResultRowsProvider struct {
