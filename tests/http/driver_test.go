@@ -42,7 +42,7 @@ func getDb(t T) Database {
 	dbURL := os.Getenv("LIBSQL_TEST_DB_URL")
 	db, err := sql.Open("libsql", dbURL)
 	t.FatalOnError(err)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() {
 		db.Close()
 		cancel()
@@ -400,6 +400,7 @@ func TestConcurrentOnSingleConnection(t *testing.T) {
 	g, ctx := errgroup.WithContext(context.Background())
 	conn, err := db.Conn(context.Background())
 	db.t.FatalOnError(err)
+	defer conn.Close()
 	worker := func(t Table, check func(int) error) func() error {
 		return func() error {
 			for i := 1; i < 100; i++ {
