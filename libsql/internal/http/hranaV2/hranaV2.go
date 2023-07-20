@@ -235,10 +235,15 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if resp.StatusCode != http.StatusOK {
 		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
 		h.streamClosed = true
-		var errResponse struct {
-			Message string `json:"error"`
-		}
+		var errResponse hrana.Error
 		if err := json.Unmarshal(body, &errResponse); err == nil {
+			if errResponse.Code != nil {
+				if *errResponse.Code == "STREAM_EXPIRED" {
+					return nil, fmt.Errorf("error code %s: %s\n%w", *errResponse.Code, errResponse.Message, driver.ErrBadConn)
+				} else {
+					return nil, fmt.Errorf("error code %s: %s", *errResponse.Code, errResponse.Message)
+				}
+			}
 			return nil, errors.New(errResponse.Message)
 		}
 		return nil, errors.New(string(body))
