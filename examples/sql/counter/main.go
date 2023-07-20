@@ -271,6 +271,7 @@ func runConcurrentOnOneConnectionExample(dbPath string) {
 		fmt.Fprintf(os.Stderr, "failed to get db connection %s: %s", dbPath, err)
 		os.Exit(1)
 	}
+	defer conn.Close()
 	worker := func(tableName string, check func(int)) {
 		defer wg.Done()
 		for i := 1; i < 100; i++ {
