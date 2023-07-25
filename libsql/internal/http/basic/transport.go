@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 )
 
 var httpClient = &http.Client{Timeout: 120 * time.Second}

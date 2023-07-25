@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9
-	github.com/libsql/sqlite-antlr4-parser v0.0.0-20230512205400-b2348f0d1196
+	github.com/libsql/sqlite-antlr4-parser v0.0.0-20230720193828-8c03e0ee46f8
 	golang.org/x/sync v0.3.0
 	nhooyr.io/websocket v1.8.7
 )
