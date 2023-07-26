@@ -6,12 +6,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"os"
 	"runtime/debug"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	_ "github.com/libsql/libsql-client-go/libsql"
 )
@@ -75,6 +76,11 @@ func (db Database) createTable() Table {
 		db.exec("DROP TABLE " + name)
 	})
 	return Table{name, db}
+}
+
+func (db Database) assertTable(name string) {
+	_, err := db.QueryContext(db.ctx, "select 1 from "+name)
+	db.t.FatalOnError(err)
 }
 
 func (t Table) insertRows(start, count int) {
@@ -260,6 +266,18 @@ func TestTransaction(t *testing.T) {
 	table.assertRowDoesNotExist(20)
 	table.assertRowExists(0)
 	table.assertRowExists(19)
+}
+
+func TestMultiLineStatement(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	db.exec("CREATE TABLE IF NOT EXISTS my_table (my_data TEXT); INSERT INTO my_table (my_data) VALUES ('hello');")
+	t.Cleanup(func() {
+		db.exec("DROP TABLE my_table")
+	})
+	table := Table{"my_table", db}
+	db.assertTable("my_table")
+	table.assertRowsCount(1)
 }
 
 func TestPreparedStatementInTransaction(t *testing.T) {
