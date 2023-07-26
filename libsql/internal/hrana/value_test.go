@@ -7,6 +7,62 @@ import (
 	"testing"
 )
 
+func TestValueToValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value Value
+		want  any
+	}{
+		{
+			name: "null",
+			value: Value{
+				Type:  "null",
+				Value: nil,
+			},
+			want: nil,
+		},
+		{
+			name: "int",
+			value: Value{
+				Type:  "integer",
+				Value: strconv.FormatInt(int64(42), 10),
+			},
+			want: int64(42),
+		},
+		{
+			name: "string",
+			value: Value{
+				Type:  "text",
+				Value: "foo",
+			},
+			want: "foo",
+		},
+		{
+			name: "bytes",
+			value: Value{
+				Type:   "blob",
+				Base64: "YmFy",
+			},
+			want: []byte("bar"),
+		},
+		{
+			name: "float",
+			value: Value{
+				Type:  "float",
+				Value: 3.14,
+			},
+			want: 3.14,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.value.ToValue()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ToValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func TestToValue(t *testing.T) {
 	tests := []struct {
 		name    string
