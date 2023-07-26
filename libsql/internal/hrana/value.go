@@ -19,6 +19,12 @@ func (v Value) ToValue() any {
 			return nil
 		}
 		return bytes
+	} else if v.Type == "integer" {
+		integer, err := strconv.ParseInt(v.Value.(string), 10, 64)
+		if err != nil {
+			return nil
+		}
+		return integer
 	}
 	return v.Value
 }
