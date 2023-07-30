@@ -47,4 +47,5 @@ jobs:
       - name: Test
         run: go test -v ./...
         env:
-          LIBSQL_TEST_DB_URL: "http://127.0.0.1:8080"
+          LIBSQL_TEST_HTTP_DB_URL: "http://127.0.0.1:8080"
+          LIBSQL_TEST_WS_DB_URL: "ws://127.0.0.1:8080"
