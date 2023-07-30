@@ -173,7 +173,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	if err != nil {
 		return nil, err
 	}
-	return &result{0, res.affectedRowCount()}, nil
+	return &result{res.lastInsertId(), res.affectedRowCount()}, nil
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {

@@ -69,6 +69,15 @@ func (r *execResponse) affectedRowCount() int64 {
 	return int64(r.resp["affected_row_count"].(float64))
 }
 
+func (r *execResponse) lastInsertId() int64 {
+	id, ok := r.resp["last_insert_rowid"].(string)
+	if !ok {
+		return 0
+	}
+	value, _ := strconv.ParseInt(id, 10, 64)
+	return value
+}
+
 func (r *execResponse) columns() []string {
 	res := []string{}
 	cols := r.resp["cols"].([]interface{})

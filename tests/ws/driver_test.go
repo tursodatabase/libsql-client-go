@@ -306,3 +306,31 @@ func TestDataTypes(t *testing.T) {
 		t.Error("null float is valid")
 	}
 }
+
+func TestExecResult(t *testing.T) {
+	ctx := context.Background()
+	db := setupDB(ctx, t)
+	result, err := db.ExecContext(ctx, "INSERT INTO test (name) VALUES (?)", "hello world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if affected != 1 {
+		t.Fatal("affected should be 1")
+	}
+	lastInsertID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lastInsertID != 1 {
+		t.Fatal("lastInsertID should be 1")
+	}
+	t.Cleanup(func() {
+		cleanupDB(ctx, t, db)
+	})
+}

@@ -77,3 +77,42 @@ func TestConvertValue(t *testing.T) {
 		})
 	}
 }
+
+func Test_execResponse_lastInsertId(t *testing.T) {
+	tests := []struct {
+		name  string
+		value map[string]interface{}
+		want  int64
+	}{
+		{
+			name:  "valid",
+			value: map[string]interface{}{"last_insert_rowid": "42"},
+			want:  42,
+		},
+		{
+			name:  "empty",
+			value: map[string]interface{}{},
+			want:  0,
+		},
+		{
+			name:  "invalid",
+			value: map[string]interface{}{"last_insert_rowid": "invalid"},
+			want:  0,
+		},
+		{
+			name:  "invalid_type",
+			value: map[string]interface{}{"last_insert_rowid": 42.0},
+			want:  0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &execResponse{
+				resp: tt.value,
+			}
+			if got := r.lastInsertId(); got != tt.want {
+				t.Errorf("lastInsertId() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
