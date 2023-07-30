@@ -40,7 +40,7 @@ type Database struct {
 }
 
 func getDb(t T) Database {
-	dbURL := os.Getenv("LIBSQL_TEST_DB_URL")
+	dbURL := os.Getenv("LIBSQL_TEST_HTTP_DB_URL")
 	db, err := sql.Open("libsql", dbURL)
 	t.FatalOnError(err)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

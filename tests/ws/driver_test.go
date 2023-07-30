@@ -13,7 +13,7 @@ import (
 
 // setupDB sets up a test database by connecting to libsql server and creates a `test` table
 func setupDB(ctx context.Context, t *testing.T) *sql.DB {
-	dbURL := os.Getenv("LIBSQL_TEST_DB_URL")
+	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
 	db, err := sql.Open("libsql", dbURL)
 	if err != nil {
 		t.Fatal(err)
@@ -216,7 +216,7 @@ func TestPreparedStatementsWithTransactionsRollback(t *testing.T) {
 }
 
 func TestCancelContext(t *testing.T) {
-	dbURL := os.Getenv("LIBSQL_TEST_DB_URL")
+	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
 	db, err := sql.Open("libsql", dbURL)
 	if err != nil {
 		t.Fatal(err)
@@ -264,7 +264,7 @@ func TestCancelTransactionWithContext(t *testing.T) {
 }
 
 func TestDataTypes(t *testing.T) {
-	dbURL := os.Getenv("LIBSQL_TEST_DB_URL")
+	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
 	db, err := sql.Open("libsql", dbURL)
 	if err != nil {
 		t.Fatal(err)
