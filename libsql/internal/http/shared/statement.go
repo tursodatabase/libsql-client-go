@@ -18,7 +18,7 @@ type ParamsInfo struct {
 }
 
 func ParseStatement(sql string) ([]string, []ParamsInfo, error) {
-	stmts := sqliteparserutils.SplitStatement(sql)
+	stmts, _ := sqliteparserutils.SplitStatement(sql)
 
 	stmtsParams := make([]ParamsInfo, len(stmts))
 	for idx, stmt := range stmts {
@@ -37,7 +37,7 @@ func ParseStatementAndArgs(sql string, args []driver.NamedValue) ([]string, []Pa
 		return nil, nil, err
 	}
 
-	stmts := sqliteparserutils.SplitStatement(sql)
+	stmts, _ := sqliteparserutils.SplitStatement(sql)
 
 	stmtsParams := make([]Params, len(stmts))
 	totalParametersAlreadyUsed := 0
