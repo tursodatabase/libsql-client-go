@@ -79,8 +79,9 @@ func (db Database) createTable() Table {
 }
 
 func (db Database) assertTable(name string) {
-	_, err := db.QueryContext(db.ctx, "select 1 from "+name)
+	rows, err := db.QueryContext(db.ctx, "select 1 from "+name)
 	db.t.FatalOnError(err)
+	defer rows.Close()
 }
 
 func (t Table) insertRows(start, count int) {
@@ -422,23 +423,32 @@ func TestConcurrentOnSingleConnection(t *testing.T) {
 	worker := func(t Table, check func(int) error) func() error {
 		return func() error {
 			for i := 1; i < 100; i++ {
-				rows, err := conn.QueryContext(ctx, "SELECT b FROM "+t.name)
-				if err != nil {
-					return fmt.Errorf("%w: %s", err, string(debug.Stack()))
-				}
-				for rows.Next() {
-					var v int
-					err := rows.Scan(&v)
+				// Each iteration is wrapped into a function to make sure that `defer rows.Close()`
+				// is called after each iteration not at the end of the outer function
+				err := func() error {
+					rows, err := conn.QueryContext(ctx, "SELECT b FROM "+t.name)
 					if err != nil {
 						return fmt.Errorf("%w: %s", err, string(debug.Stack()))
 					}
-					if err := check(v); err != nil {
+					defer rows.Close()
+					for rows.Next() {
+						var v int
+						err := rows.Scan(&v)
+						if err != nil {
+							return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+						}
+						if err := check(v); err != nil {
+							return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+						}
+					}
+					err = rows.Err()
+					if err != nil {
 						return fmt.Errorf("%w: %s", err, string(debug.Stack()))
 					}
-				}
-				err = rows.Err()
+					return nil
+				}()
 				if err != nil {
-					return fmt.Errorf("%w: %s", err, string(debug.Stack()))
+					return err
 				}
 			}
 			return nil
