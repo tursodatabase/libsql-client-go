@@ -38,6 +38,12 @@ jobs:
       - name: Vet
         run: go vet -v ./...
 
+      - name: Install sqlclosecheck
+        run: go install github.com/ryanrolds/sqlclosecheck@latest
+
+      - name: sqlclosecheck
+        run: go vet -vettool=${HOME}/go/bin/sqlclosecheck ./...
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
 
