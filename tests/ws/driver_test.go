@@ -134,10 +134,12 @@ func TestPreparedStatementsWithTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = stmt.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	func() { // needed to surpress linter
+		err = stmt.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err)
@@ -194,10 +196,12 @@ func TestPreparedStatementsWithTransactionsRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = stmt.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	func() { // needed to surpress linter
+		err = stmt.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 	err = tx.Rollback()
 	if err != nil {
 		t.Fatal(err)
