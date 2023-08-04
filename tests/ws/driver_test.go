@@ -102,11 +102,13 @@ func TestPreparedStatements(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err := stmt.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 	_, err = stmt.ExecContext(ctx, "hello world")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = stmt.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
