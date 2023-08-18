@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type Value struct {
@@ -26,6 +27,14 @@ func (v Value) ToValue() any {
 		}
 		return integer
 	}
+	if v.Type == "text" {
+		date, err := time.Parse(time.RFC3339, v.Value.(string))
+		if err != nil {
+			return v.Value
+		}
+		return date
+	}
+
 	return v.Value
 }
 
@@ -48,6 +57,9 @@ func ToValue(v any) (Value, error) {
 	} else if float, ok := v.(float64); ok {
 		res.Type = "float"
 		res.Value = float
+	} else if date, ok := v.(time.Time); ok {
+		res.Type = "text"
+		res.Value = date.Format(time.RFC3339)
 	} else {
 		return res, fmt.Errorf("unsupported value type: %s", v)
 	}
