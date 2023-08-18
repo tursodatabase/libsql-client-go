@@ -378,3 +378,8 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "unknown response type")
 	}
 }
+
+func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
+	h.baton = ""
+	return nil
+}
