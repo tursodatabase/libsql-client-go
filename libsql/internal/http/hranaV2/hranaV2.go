@@ -34,20 +34,17 @@ func IsSupported(url, jwt string) bool {
 }
 
 func Connect(url, jwt string) driver.Conn {
-	return &hranaV2Conn{url, jwt, "", 0, false}
+	return &hranaV2Conn{url, jwt, "", false}
 }
 
 type hranaV2Stmt struct {
 	conn     *hranaV2Conn
 	numInput int
-	sqlId    int32
+	sql      string
 }
 
 func (s *hranaV2Stmt) Close() error {
-	var req hrana.PipelineRequest
-	req.Add(hrana.CloseStoredSqlStream(s.sqlId))
-	_, err := s.conn.sendPipelineRequest(context.Background(), &req)
-	return err
+	return nil
 }
 
 func (s *hranaV2Stmt) NumInput() int {
@@ -74,66 +71,17 @@ func (s *hranaV2Stmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *hranaV2Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
-	msg := hrana.PipelineRequest{}
-	params, err := shared.ConvertArgs(args)
-	if err != nil {
-		return nil, err
-	}
-	executeStream, err := hrana.ExecuteStoredStream(s.sqlId, params, false)
-	if err != nil {
-		return nil, err
-	}
-	msg.Add(*executeStream)
-	result, err := s.conn.sendPipelineRequest(ctx, &msg)
-	if err != nil {
-		return nil, err
-	}
-	if result.Results[0].Error != nil {
-		return nil, errors.New(result.Results[0].Error.Message)
-	}
-	if result.Results[0].Response == nil {
-		return nil, errors.New("no response received")
-	}
-	res, err := result.Results[0].Response.ExecuteResult()
-	if err != nil {
-		return nil, err
-	}
-	return shared.NewResult(res.GetLastInsertRowId(), int64(res.AffectedRowCount)), nil
+	return s.conn.ExecContext(ctx, s.sql, args)
 }
 
 func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-	msg := hrana.PipelineRequest{}
-	params, err := shared.ConvertArgs(args)
-	if err != nil {
-		return nil, err
-	}
-	executeStream, err := hrana.ExecuteStoredStream(s.sqlId, params, true)
-	if err != nil {
-		return nil, err
-	}
-	msg.Add(*executeStream)
-	result, err := s.conn.sendPipelineRequest(ctx, &msg)
-	if err != nil {
-		return nil, err
-	}
-	if result.Results[0].Error != nil {
-		return nil, errors.New(result.Results[0].Error.Message)
-	}
-	if result.Results[0].Response == nil {
-		return nil, errors.New("no response received")
-	}
-	res, err := result.Results[0].Response.ExecuteResult()
-	if err != nil {
-		return nil, err
-	}
-	return shared.NewRows(&StmtResultRowsProvider{res}), nil
+	return s.conn.QueryContext(ctx, s.sql, args)
 }
 
 type hranaV2Conn struct {
 	url          string
 	jwt          string
 	baton        string
-	nextSqlId    int32
 	streamClosed bool
 }
 
@@ -153,17 +101,7 @@ func (h *hranaV2Conn) PrepareContext(ctx context.Context, query string) (driver.
 	if len(paramInfos[0].NamedParameters) == 0 {
 		numInput = paramInfos[0].PositionalParametersCount
 	}
-	var req hrana.PipelineRequest
-	sqlId := h.nextSqlId
-	req.Add(hrana.StoreSqlStream(query, sqlId))
-	h.nextSqlId++
-
-	_, err = h.sendPipelineRequest(ctx, &req)
-	if err != nil {
-		return nil, err
-	}
-
-	return &hranaV2Stmt{h, numInput, sqlId}, nil
+	return &hranaV2Stmt{h, numInput, query}, nil
 }
 
 func (h *hranaV2Conn) Close() error {
@@ -439,4 +377,9 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 	default:
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "unknown response type")
 	}
+}
+
+func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
+	h.baton = ""
+	return nil
 }
