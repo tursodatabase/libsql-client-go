@@ -140,7 +140,7 @@ func (h *hranaV2Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (drive
 	return &hranaV2Tx{h}, nil
 }
 
-func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest) (*hrana.PipelineResponse, error) {
+func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, streamClose bool) (*hrana.PipelineResponse, error) {
 	if h.streamClosed {
 		// If the stream is closed, we can't send any more requests using this connection.
 		return nil, fmt.Errorf("stream is closed: %w", driver.ErrBadConn)
@@ -191,7 +191,7 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 		return nil, err
 	}
 	h.baton = result.Baton
-	if result.Baton == "" {
+	if result.Baton == "" && !streamClose {
 		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
 		h.streamClosed = true
 	}
@@ -221,7 +221,7 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 		msg.Add(*batchStream)
 	}
 
-	result, err := h.sendPipelineRequest(ctx, msg)
+	result, err := h.sendPipelineRequest(ctx, msg, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
@@ -379,7 +379,28 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 	}
 }
 
+func (h *hranaV2Conn) closeStream(ctx context.Context) error {
+	msg := &hrana.PipelineRequest{}
+	msg.Add(hrana.CloseStream())
+	result, err := h.sendPipelineRequest(ctx, msg, true)
+	if err != nil {
+		return fmt.Errorf("failed to close stream: %w", err)
+	}
+
+	if result.Results[0].Error != nil {
+		return fmt.Errorf("failed to close stream: %s", result.Results[0].Error.Message)
+	}
+	if result.Results[0].Response == nil {
+		return errors.New("failed to close stream: no response received")
+	}
+	return nil
+}
+
 func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
-	h.baton = ""
+	if h.baton != "" {
+		err := h.closeStream(ctx)
+		h.baton = ""
+		return err
+	}
 	return nil
 }
