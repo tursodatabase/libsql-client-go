@@ -246,7 +246,7 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 			}
 			return nil, errors.New(errResponse.Message)
 		}
-		return nil, errors.New(string(body))
+		return nil, fmt.Errorf("error code %d: %s", resp.StatusCode, string(body))
 	}
 	var result hrana.PipelineResponse
 	if err = json.Unmarshal(body, &result); err != nil {
