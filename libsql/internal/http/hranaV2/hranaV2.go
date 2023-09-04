@@ -15,24 +15,6 @@ import (
 	"time"
 )
 
-func IsSupported(url, jwt string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", url+"/v2", nil)
-	if err != nil {
-		return false
-	}
-	if len(jwt) > 0 {
-		req.Header.Set("Authorization", "Bearer "+jwt)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
-}
-
 func Connect(url, jwt string) driver.Conn {
 	return &hranaV2Conn{url, jwt, "", 0, false}
 }
