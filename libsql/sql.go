@@ -5,20 +5,12 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/libsql/libsql-client-go/libsql/internal/http"
 	"github.com/libsql/libsql-client-go/libsql/internal/ws"
 )
-
-func contains(s []string, item string) bool {
-	for idx := range s {
-		if s[idx] == item {
-			return true
-		}
-	}
-	return false
-}
 
 type Driver struct {
 }
@@ -85,7 +77,7 @@ func (d *Driver) Open(dbUrl string) (driver.Conn, error) {
 		expectedDrivers := []string{"sqlite", "sqlite3"}
 		presentDrivers := sql.Drivers()
 		for _, expectedDriver := range expectedDrivers {
-			if contains(presentDrivers, expectedDriver) {
+			if slices.Contains(presentDrivers, expectedDriver) {
 				db, err := sql.Open(expectedDriver, dbUrl)
 				if err != nil {
 					return nil, err
