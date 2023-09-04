@@ -20,7 +20,7 @@ func contains(s []string, item string) bool {
 	return false
 }
 
-type LibsqlDriver struct {
+type Driver struct {
 }
 
 // ExtractJwt extracts the JWT from the URL and removes it from the url.
@@ -73,7 +73,7 @@ func extractTls(query *url.Values, scheme string) (bool, error) {
 	}
 }
 
-func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
+func (d *Driver) Open(dbUrl string) (driver.Conn, error) {
 	u, err := url.Parse(dbUrl)
 	if err != nil {
 		return nil, err
@@ -141,5 +141,5 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 }
 
 func init() {
-	sql.Register("libsql", &LibsqlDriver{})
+	sql.Register("libsql", &Driver{})
 }
