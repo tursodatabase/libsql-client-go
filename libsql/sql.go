@@ -93,7 +93,7 @@ func (d *Driver) Open(dbUrl string) (driver.Conn, error) {
 				return db.Driver().Open(dbUrl)
 			}
 		}
-		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver.")
+		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver")
 	}
 
 	query := u.Query()
