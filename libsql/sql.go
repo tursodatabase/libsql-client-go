@@ -1,26 +1,185 @@
 package libsql
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/libsql/libsql-client-go/libsql/internal/http"
 	"github.com/libsql/libsql-client-go/libsql/internal/ws"
 )
 
-func contains(s []string, item string) bool {
-	for idx := range s {
-		if s[idx] == item {
-			return true
-		}
-	}
-	return false
+type config struct {
+	authToken *string
+	tls       *bool
 }
 
-type LibsqlDriver struct {
+type Option interface {
+	apply(*config) error
+}
+
+type option func(*config) error
+
+func (o option) apply(c *config) error {
+	return o(c)
+}
+
+func WithAuthToken(authToken string) Option {
+	return option(func(o *config) error {
+		if o.authToken != nil {
+			return fmt.Errorf("authToken already set")
+		}
+		if authToken == "" {
+			return fmt.Errorf("authToken must not be empty")
+		}
+		o.authToken = &authToken
+		return nil
+	})
+}
+
+func WithTls(tls bool) Option {
+	return option(func(o *config) error {
+		if o.tls != nil {
+			return fmt.Errorf("tls already set")
+		}
+		o.tls = &tls
+		return nil
+	})
+}
+
+func (c config) connector(dbPath string) (driver.Connector, error) {
+	u, err := url.Parse(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme == "file" {
+		if strings.HasPrefix(dbPath, "file://") && !strings.HasPrefix(dbPath, "file:///") {
+			return nil, fmt.Errorf("invalid database URL: %s. File URLs should not have double leading slashes. ", dbPath)
+		}
+		expectedDrivers := []string{"sqlite", "sqlite3"}
+		presentDrivers := sql.Drivers()
+		for _, expectedDriver := range expectedDrivers {
+			if slices.Contains(presentDrivers, expectedDriver) {
+				db, err := sql.Open(expectedDriver, dbPath)
+				if err != nil {
+					return nil, err
+				}
+				return &fileConnector{url: dbPath, driver: db.Driver()}, nil
+			}
+		}
+		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver")
+	}
+
+	query := u.Query()
+	if query.Has("auth_token") {
+		return nil, fmt.Errorf("'auth_token' usage forbidden. Please use 'WithAuthToken' option instead")
+	}
+	if query.Has("authToken") {
+		return nil, fmt.Errorf("'authToken' usage forbidden. Please use 'WithAuthToken' option instead")
+	}
+	if query.Has("jwt") {
+		return nil, fmt.Errorf("'jwt' usage forbidden. Please use 'WithAuthToken' option instead")
+	}
+	if query.Has("tls") {
+		return nil, fmt.Errorf("'tls' usage forbidden. Please use 'WithTls' option instead")
+	}
+
+	for name := range query {
+		return nil, fmt.Errorf("unknown query parameter %#v", name)
+	}
+
+	if u.Scheme == "libsql" {
+		if c.tls == nil || *c.tls {
+			u.Scheme = "https"
+		} else {
+			if c.tls != nil && u.Port() == "" {
+				return nil, fmt.Errorf("libsql:// URL without tls must specify an explicit port")
+			}
+			u.Scheme = "http"
+		}
+	}
+
+	if (u.Scheme == "wss" || u.Scheme == "https") && c.tls != nil && !*c.tls {
+		return nil, fmt.Errorf("%s:// URL cannot opt out of TLS. Only libsql:// can opt in/out of TLS", u.Scheme)
+	}
+	if (u.Scheme == "ws" || u.Scheme == "http") && c.tls != nil && *c.tls {
+		return nil, fmt.Errorf("%s:// URL cannot opt in to TLS. Only libsql:// can opt in/out of TLS", u.Scheme)
+	}
+
+	authToken := ""
+	if c.authToken != nil {
+		authToken = *c.authToken
+	}
+
+	if u.Scheme == "wss" || u.Scheme == "ws" {
+		return wsConnector{url: u.String(), authToken: authToken}, nil
+	}
+	if u.Scheme == "https" || u.Scheme == "http" {
+		return httpConnector{url: u.String(), authToken: authToken}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)
+}
+
+func NewConnector(dbPath string, opts ...Option) (driver.Connector, error) {
+	var config config
+	errs := make([]error, 0, len(opts))
+	for _, opt := range opts {
+		if err := opt.apply(&config); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return config.connector(dbPath)
+}
+
+type httpConnector struct {
+	url       string
+	authToken string
+}
+
+func (c httpConnector) Connect(_ctx context.Context) (driver.Conn, error) {
+	return http.Connect(c.url, c.authToken), nil
+}
+
+func (c httpConnector) Driver() driver.Driver {
+	return Driver{}
+}
+
+type wsConnector struct {
+	url       string
+	authToken string
+}
+
+func (c wsConnector) Connect(_ctx context.Context) (driver.Conn, error) {
+	return ws.Connect(c.url, c.authToken)
+}
+
+func (c wsConnector) Driver() driver.Driver {
+	return Driver{}
+}
+
+type fileConnector struct {
+	url    string
+	driver driver.Driver
+}
+
+func (c fileConnector) Connect(_ctx context.Context) (driver.Conn, error) {
+	return c.driver.Open(c.url)
+}
+
+func (c fileConnector) Driver() driver.Driver {
+	return Driver{}
+}
+
+type Driver struct {
 }
 
 // ExtractJwt extracts the JWT from the URL and removes it from the url.
@@ -73,7 +232,7 @@ func extractTls(query *url.Values, scheme string) (bool, error) {
 	}
 }
 
-func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
+func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 	u, err := url.Parse(dbUrl)
 	if err != nil {
 		return nil, err
@@ -85,7 +244,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 		expectedDrivers := []string{"sqlite", "sqlite3"}
 		presentDrivers := sql.Drivers()
 		for _, expectedDriver := range expectedDrivers {
-			if contains(presentDrivers, expectedDriver) {
+			if slices.Contains(presentDrivers, expectedDriver) {
 				db, err := sql.Open(expectedDriver, dbUrl)
 				if err != nil {
 					return nil, err
@@ -93,7 +252,7 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 				return db.Driver().Open(dbUrl)
 			}
 		}
-		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver.")
+		return nil, fmt.Errorf("no sqlite driver present. Please import sqlite or sqlite3 driver")
 	}
 
 	query := u.Query()
@@ -141,5 +300,5 @@ func (d *LibsqlDriver) Open(dbUrl string) (driver.Conn, error) {
 }
 
 func init() {
-	sql.Register("libsql", &LibsqlDriver{})
+	sql.Register("libsql", Driver{})
 }

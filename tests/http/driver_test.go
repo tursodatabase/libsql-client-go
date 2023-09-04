@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"github.com/libsql/libsql-client-go/libsql"
 	"math/rand"
 	"os"
 	"runtime/debug"
@@ -41,7 +43,18 @@ type Database struct {
 
 func getDb(t T) Database {
 	dbURL := os.Getenv("LIBSQL_TEST_HTTP_DB_URL")
-	db, err := sql.Open("libsql", dbURL)
+	authToken := os.Getenv("LIBSQL_TEST_HTTP_AUTH_TOKEN")
+	var connector driver.Connector
+	var err error
+	if authToken == "" {
+		connector, err = libsql.NewConnector(dbURL)
+	} else {
+		connector, err = libsql.NewConnector(dbURL, libsql.WithAuthToken(authToken))
+	}
+	if err != nil {
+		t.FatalOnError(err)
+	}
+	db := sql.OpenDB(connector)
 	t.FatalOnError(err)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() {
