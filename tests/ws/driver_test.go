@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"github.com/libsql/libsql-client-go/libsql"
 	"os"
 	"testing"
 
@@ -14,10 +16,18 @@ import (
 // setupDB sets up a test database by connecting to libsql server and creates a `test` table
 func setupDB(ctx context.Context, t *testing.T) *sql.DB {
 	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
-	db, err := sql.Open("libsql", dbURL)
+	authToken := os.Getenv("LIBSQL_TEST_WS_AUTH_TOKEN")
+	var connector driver.Connector
+	var err error
+	if authToken == "" {
+		connector, err = libsql.NewConnector(dbURL)
+	} else {
+		connector, err = libsql.NewConnector(dbURL, libsql.WithAuthToken(authToken))
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
+	db := sql.OpenDB(connector)
 	_, err = db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)")
 	if err != nil {
 		t.Fatal(err)
@@ -222,14 +232,10 @@ func TestPreparedStatementsWithTransactionsRollback(t *testing.T) {
 }
 
 func TestCancelContext(t *testing.T) {
-	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
-	db, err := sql.Open("libsql", dbURL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setupDB(context.Background(), t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)")
+	_, err := db.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)")
 	if err == nil {
 		t.Fatal("should have failed")
 	}
@@ -270,11 +276,7 @@ func TestCancelTransactionWithContext(t *testing.T) {
 }
 
 func TestDataTypes(t *testing.T) {
-	dbURL := os.Getenv("LIBSQL_TEST_WS_DB_URL")
-	db, err := sql.Open("libsql", dbURL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setupDB(context.Background(), t)
 	defer db.Close()
 	ctx := context.Background()
 	var (
@@ -287,7 +289,7 @@ func TestDataTypes(t *testing.T) {
 		nullFloat   sql.NullFloat64
 		bytea       []byte
 	)
-	err = db.QueryRowContext(ctx, "SELECT 'foobar' as text, NULL as text,  NULL as integer, 42 as integer, 1 as boolean, X'000102' as bytea, 3.14 as float8, NULL as float8;").Scan(&text, &nullText, &nullInteger, &integer, &boolean, &bytea, &float8, &nullFloat)
+	err := db.QueryRowContext(ctx, "SELECT 'foobar' as text, NULL as text,  NULL as integer, 42 as integer, 1 as boolean, X'000102' as bytea, 3.14 as float8, NULL as float8;").Scan(&text, &nullText, &nullInteger, &integer, &boolean, &bytea, &float8, &nullFloat)
 	if err != nil {
 		t.Fatal(err)
 	}
