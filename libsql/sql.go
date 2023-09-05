@@ -140,6 +140,9 @@ func (c config) connector(dbPath string) (driver.Connector, error) {
 			return nil, err
 		}
 		u.Host = proxy.Host
+		if proxy.Scheme != "" {
+			u.Scheme = proxy.Scheme
+		}
 	}
 
 	if u.Scheme == "wss" || u.Scheme == "ws" {
