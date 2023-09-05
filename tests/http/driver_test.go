@@ -51,11 +51,8 @@ func getDb(t T) Database {
 	} else {
 		connector, err = libsql.NewConnector(dbURL, libsql.WithAuthToken(authToken))
 	}
-	if err != nil {
-		t.FatalOnError(err)
-	}
-	db := sql.OpenDB(connector)
 	t.FatalOnError(err)
+	db := sql.OpenDB(connector)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() {
 		db.Close()
