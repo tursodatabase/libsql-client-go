@@ -17,6 +17,7 @@ import (
 type config struct {
 	authToken *string
 	tls       *bool
+	proxy     *string
 }
 
 type Option interface {
@@ -48,6 +49,19 @@ func WithTls(tls bool) Option {
 			return fmt.Errorf("tls already set")
 		}
 		o.tls = &tls
+		return nil
+	})
+}
+
+func WithProxy(proxy string) Option {
+	return option(func(o *config) error {
+		if o.proxy != nil {
+			return fmt.Errorf("proxy already set")
+		}
+		if proxy == "" {
+			return fmt.Errorf("proxy must not be empty")
+		}
+		o.proxy = &proxy
 		return nil
 	})
 }
@@ -116,11 +130,23 @@ func (c config) connector(dbPath string) (driver.Connector, error) {
 		authToken = *c.authToken
 	}
 
+	host := u.Host
+	if c.proxy != nil {
+		if u.Scheme == "ws" || u.Scheme == "wss" {
+			return nil, fmt.Errorf("proxying of ws:// and wss:// URLs is not supported")
+		}
+		proxy, err := url.Parse(*c.proxy)
+		if err != nil {
+			return nil, err
+		}
+		u.Host = proxy.Host
+	}
+
 	if u.Scheme == "wss" || u.Scheme == "ws" {
 		return wsConnector{url: u.String(), authToken: authToken}, nil
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return httpConnector{url: u.String(), authToken: authToken}, nil
+		return httpConnector{url: u.String(), authToken: authToken, host: host}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)
@@ -143,10 +169,11 @@ func NewConnector(dbPath string, opts ...Option) (driver.Connector, error) {
 type httpConnector struct {
 	url       string
 	authToken string
+	host      string
 }
 
 func (c httpConnector) Connect(_ctx context.Context) (driver.Conn, error) {
-	return http.Connect(c.url, c.authToken), nil
+	return http.Connect(c.url, c.authToken, c.host), nil
 }
 
 func (c httpConnector) Driver() driver.Driver {
@@ -293,7 +320,7 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 		return ws.Connect(u.String(), jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return http.Connect(u.String(), jwt), nil
+		return http.Connect(u.String(), jwt, u.Host), nil
 	}
 
 	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)

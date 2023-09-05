@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-func Connect(url, jwt string) driver.Conn {
-	return &hranaV2Conn{url, jwt, "", false}
+func Connect(url, jwt, host string) driver.Conn {
+	return &hranaV2Conn{url, jwt, host, "", false}
 }
 
 type hranaV2Stmt struct {
@@ -63,6 +63,7 @@ func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue
 type hranaV2Conn struct {
 	url          string
 	jwt          string
+	host         string
 	baton        string
 	streamClosed bool
 }
@@ -143,6 +144,7 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if len(h.jwt) > 0 {
 		req.Header.Set("Authorization", "Bearer "+h.jwt)
 	}
+	req.Header.Set("Host", h.host)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
