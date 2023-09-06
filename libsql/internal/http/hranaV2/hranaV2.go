@@ -144,7 +144,7 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if len(h.jwt) > 0 {
 		req.Header.Set("Authorization", "Bearer "+h.jwt)
 	}
-	req.Header.Set("Host", h.host)
+	req.Host = h.host
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
