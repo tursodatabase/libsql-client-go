@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type Value struct {
@@ -12,7 +13,7 @@ type Value struct {
 	Base64 string `json:"base64,omitempty"`
 }
 
-func (v Value) ToValue() any {
+func (v Value) ToValue(columnType *string) any {
 	if v.Type == "blob" {
 		bytes, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(v.Base64)
 		if err != nil {
@@ -25,6 +26,24 @@ func (v Value) ToValue() any {
 			return nil
 		}
 		return integer
+	} else if columnType != nil {
+		if *columnType == "DATETIME" && v.Type == "text" {
+			for _, format := range []string{
+				"2006-01-02 15:04:05.999999999-07:00",
+				"2006-01-02T15:04:05.999999999-07:00",
+				"2006-01-02 15:04:05.999999999",
+				"2006-01-02T15:04:05.999999999",
+				"2006-01-02 15:04:05",
+				"2006-01-02T15:04:05",
+				"2006-01-02 15:04",
+				"2006-01-02T15:04",
+				"2006-01-02",
+			} {
+				if t, err := time.ParseInLocation(format, v.Value.(string), time.UTC); err == nil {
+					return t
+				}
+			}
+		}
 	}
 	return v.Value
 }
@@ -48,6 +67,9 @@ func ToValue(v any) (Value, error) {
 	} else if float, ok := v.(float64); ok {
 		res.Type = "float"
 		res.Value = float
+	} else if t, ok := v.(time.Time); ok {
+		res.Type = "text"
+		res.Value = t.Format("2006-01-02 15:04:05.999999999-07:00")
 	} else {
 		return res, fmt.Errorf("unsupported value type: %s", v)
 	}

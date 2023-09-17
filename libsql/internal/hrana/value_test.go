@@ -56,7 +56,7 @@ func TestValueToValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.value.ToValue()
+			got := tt.value.ToValue(nil)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToValue() = %v, want %v", got, tt.want)
 			}
