@@ -283,7 +283,7 @@ func (p *StmtResultRowsProvider) FieldValue(setIdx, rowIdx, colIdx int) driver.V
 	if setIdx != 0 {
 		return nil
 	}
-	return p.r.Rows[rowIdx][colIdx].ToValue()
+	return p.r.Rows[rowIdx][colIdx].ToValue(p.r.Cols[colIdx].Type)
 }
 
 func (p *StmtResultRowsProvider) Error(setIdx int) string {
@@ -326,7 +326,7 @@ func (p *BatchResultRowsProvider) FieldValue(setIdx, rowIdx, colIdx int) driver.
 	if setIdx >= len(p.r.StepResults) || p.r.StepResults[setIdx] == nil {
 		return nil
 	}
-	return p.r.StepResults[setIdx].Rows[rowIdx][colIdx].ToValue()
+	return p.r.StepResults[setIdx].Rows[rowIdx][colIdx].ToValue(p.r.StepResults[setIdx].Cols[colIdx].Type)
 }
 
 func (p *BatchResultRowsProvider) Error(setIdx int) string {
