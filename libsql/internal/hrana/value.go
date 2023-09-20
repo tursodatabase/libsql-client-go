@@ -70,6 +70,12 @@ func ToValue(v any) (Value, error) {
 	} else if t, ok := v.(time.Time); ok {
 		res.Type = "text"
 		res.Value = t.Format("2006-01-02 15:04:05.999999999-07:00")
+	} else if t, ok := v.(bool); ok {
+		res.Type = "integer"
+		res.Value = "0"
+		if t {
+			res.Value = "1"
+		}
 	} else {
 		return res, fmt.Errorf("unsupported value type: %s", v)
 	}
