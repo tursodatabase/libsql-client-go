@@ -84,7 +84,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var dbUrl = "file://path/to/file.db"
+var dbUrl = "file:path/to/file.db"
 db, err := sql.Open("libsql", dbUrl)
 if err != nil {
     fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dbUrl, err)
