@@ -157,6 +157,12 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if resp.StatusCode != http.StatusOK {
 		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
 		h.streamClosed = true
+		var serverError struct {
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(body, &serverError); err == nil {
+			return nil, fmt.Errorf("error code %d: %s", resp.StatusCode, serverError.Error)
+		}
 		var errResponse hrana.Error
 		if err := json.Unmarshal(body, &errResponse); err == nil {
 			if errResponse.Code != nil {
