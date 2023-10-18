@@ -82,7 +82,15 @@ func TestStmtWithNamedArgs(t *testing.T) {
 				t.Errorf("StmtWithNamedArgs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(stmt.NamedArgs, tt.want) {
+			got := make(map[NamedArg]struct{})
+			want := make(map[NamedArg]struct{})
+			for _, arg := range stmt.NamedArgs {
+				got[arg] = struct{}{}
+			}
+			for _, arg := range tt.want {
+				want[arg] = struct{}{}
+			}
+			if !reflect.DeepEqual(got, want) {
 				t.Errorf("got = %v, want %v", stmt.NamedArgs, tt.want)
 			}
 		})
