@@ -5,13 +5,15 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestValueToValue(t *testing.T) {
 	tests := []struct {
-		name  string
-		value Value
-		want  any
+		name       string
+		columnType string
+		value      Value
+		want       any
 	}{
 		{
 			name: "null",
@@ -53,16 +55,30 @@ func TestValueToValue(t *testing.T) {
 			},
 			want: 3.14,
 		},
+		{
+			name:       "timestamp",
+			columnType: "TIMESTAMP",
+			value: Value{
+				Type:  "text",
+				Value: "0001-01-01 01:00:00+00:00",
+			},
+			want: time.Time{}.Add(time.Hour),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.value.ToValue(nil)
+			var columnType *string = nil
+			if tt.columnType != "" {
+				columnType = &tt.columnType
+			}
+			got := tt.value.ToValue(columnType)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
+
 func TestToValue(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -107,6 +123,22 @@ func TestToValue(t *testing.T) {
 			want: Value{
 				Type:  "float",
 				Value: 3.14,
+			},
+		},
+		{
+			name:  "boolean",
+			value: true,
+			want: Value{
+				Type:  "integer",
+				Value: "1",
+			},
+		},
+		{
+			name:  "timestamp",
+			value: time.Time{}.Add(time.Hour),
+			want: Value{
+				Type:  "text",
+				Value: "0001-01-01 01:00:00+00:00",
 			},
 		},
 		{
@@ -174,6 +206,14 @@ func TestMarshal(t *testing.T) {
 				Value: 3.14,
 			},
 			marshaled: `{"type":"float","value":3.14}`,
+		},
+		{
+			name: "timestamp",
+			value: Value{
+				Type:  "text",
+				Value: time.Time{}.Add(time.Hour),
+			},
+			marshaled: `{"type":"text","value":"0001-01-01T01:00:00Z"}`,
 		},
 	}
 	for _, tt := range tests {

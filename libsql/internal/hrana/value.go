@@ -45,6 +45,7 @@ func (v Value) ToValue(columnType *string) any {
 			}
 		}
 	}
+
 	return v.Value
 }
 
