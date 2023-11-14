@@ -131,53 +131,11 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if h.baton != "" {
 		msg.Baton = h.baton
 	}
-	reqBody, err := json.Marshal(msg)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", h.url+"/v2/pipeline", bytes.NewReader(reqBody))
-	if err != nil {
-		return nil, err
-	}
-	if len(h.jwt) > 0 {
-		req.Header.Set("Authorization", "Bearer "+h.jwt)
-	}
-	req.Host = h.host
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
+	result, streamClosed, err := sendPipelineRequest(ctx, msg, h.url, h.jwt, h.host)
+	if streamClosed {
 		h.streamClosed = true
-		var serverError struct {
-			Error string `json:"error"`
-		}
-		if err := json.Unmarshal(body, &serverError); err == nil {
-			return nil, fmt.Errorf("error code %d: %s", resp.StatusCode, serverError.Error)
-		}
-		var errResponse hrana.Error
-		if err := json.Unmarshal(body, &errResponse); err == nil {
-			if errResponse.Code != nil {
-				if *errResponse.Code == "STREAM_EXPIRED" {
-					return nil, fmt.Errorf("error code %s: %s\n%w", *errResponse.Code, errResponse.Message, driver.ErrBadConn)
-				} else {
-					return nil, fmt.Errorf("error code %s: %s", *errResponse.Code, errResponse.Message)
-				}
-			}
-			return nil, errors.New(errResponse.Message)
-		}
-		return nil, fmt.Errorf("error code %d: %s", resp.StatusCode, string(body))
 	}
-	var result hrana.PipelineResponse
-	if err = json.Unmarshal(body, &result); err != nil {
+	if err != nil {
 		return nil, err
 	}
 	h.baton = result.Baton
@@ -189,6 +147,57 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 		h.url = result.BaseUrl
 	}
 	return &result, nil
+}
+
+func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url string, jwt string, host string) (result hrana.PipelineResponse, streamClosed bool, err error) {
+	reqBody, err := json.Marshal(msg)
+	if err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", url+"/v2/pipeline", bytes.NewReader(reqBody))
+	if err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	if len(jwt) > 0 {
+		req.Header.Set("Authorization", "Bearer "+jwt)
+	}
+	req.Host = host
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
+		var serverError struct {
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(body, &serverError); err == nil {
+			return hrana.PipelineResponse{}, true, fmt.Errorf("error code %d: %s", resp.StatusCode, serverError.Error)
+		}
+		var errResponse hrana.Error
+		if err := json.Unmarshal(body, &errResponse); err == nil {
+			if errResponse.Code != nil {
+				if *errResponse.Code == "STREAM_EXPIRED" {
+					return hrana.PipelineResponse{}, true, fmt.Errorf("error code %s: %s\n%w", *errResponse.Code, errResponse.Message, driver.ErrBadConn)
+				} else {
+					return hrana.PipelineResponse{}, true, fmt.Errorf("error code %s: %s", *errResponse.Code, errResponse.Message)
+				}
+			}
+			return hrana.PipelineResponse{}, true, errors.New(errResponse.Message)
+		}
+		return hrana.PipelineResponse{}, true, fmt.Errorf("error code %d: %s", resp.StatusCode, string(body))
+	}
+	if err = json.Unmarshal(body, &result); err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	return result, false, nil
 }
 
 func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driver.NamedValue, wantRows bool) (*hrana.PipelineResponse, error) {
