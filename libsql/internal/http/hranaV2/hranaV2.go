@@ -397,9 +397,12 @@ func (h *hranaV2Conn) closeStream(ctx context.Context) error {
 
 func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
 	if h.baton != "" {
-		err := h.closeStream(ctx)
+		go func(baton, url, jwt, host string) {
+			msg := hrana.PipelineRequest{Baton: baton}
+			msg.Add(hrana.CloseStream())
+			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host)
+		}(h.baton, h.url, h.jwt, h.host)
 		h.baton = ""
-		return err
 	}
 	return nil
 }
