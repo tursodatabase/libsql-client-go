@@ -88,6 +88,13 @@ func (h *hranaV2Conn) PrepareContext(ctx context.Context, query string) (driver.
 }
 
 func (h *hranaV2Conn) Close() error {
+	if h.baton != "" {
+		go func(baton, url, jwt, host string) {
+			msg := hrana.PipelineRequest{Baton: baton}
+			msg.Add(hrana.CloseStream())
+			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host)
+		}(h.baton, h.url, h.jwt, h.host)
+	}
 	return nil
 }
 
@@ -376,23 +383,6 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 	default:
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "unknown response type")
 	}
-}
-
-func (h *hranaV2Conn) closeStream(ctx context.Context) error {
-	msg := &hrana.PipelineRequest{}
-	msg.Add(hrana.CloseStream())
-	result, err := h.sendPipelineRequest(ctx, msg, true)
-	if err != nil {
-		return fmt.Errorf("failed to close stream: %w", err)
-	}
-
-	if result.Results[0].Error != nil {
-		return fmt.Errorf("failed to close stream: %s", result.Results[0].Error.Message)
-	}
-	if result.Results[0].Response == nil {
-		return errors.New("failed to close stream: no response received")
-	}
-	return nil
 }
 
 func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
