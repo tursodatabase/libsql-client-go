@@ -7,7 +7,7 @@ toolchain go1.21.0
 replace github.com/libsql/libsql-client-go => ../
 
 require (
-	github.com/libsql/libsql-client-go v0.0.0-20230426130049-e6ddf604c6c5
+	github.com/libsql/libsql-client-go v0.0.0-20231115142106-b215c7de15bf
 	modernc.org/sqlite v1.22.0
 )
 
