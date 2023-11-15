@@ -12,8 +12,28 @@ import (
 	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"net/http"
+	"runtime/debug"
+	"strings"
 	"time"
 )
+
+var commitHash string
+
+func init() {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, module := range info.Deps {
+			if module.Path == "github.com/libsql/libsql-client-go" {
+				fmt.Println(module.Version)
+				parts := strings.Split(module.Version, "-")
+				if len(parts) > 2 {
+					commitHash = parts[2][:6]
+					return
+				}
+			}
+		}
+	}
+	commitHash = "unknown"
+}
 
 func Connect(url, jwt, host string) driver.Conn {
 	return &hranaV2Conn{url, jwt, host, "", false}
@@ -170,6 +190,7 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	if len(jwt) > 0 {
 		req.Header.Set("Authorization", "Bearer "+jwt)
 	}
+	req.Header.Set("x-libsql-client-version", "libsql-remote-go-"+commitHash)
 	req.Host = host
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
