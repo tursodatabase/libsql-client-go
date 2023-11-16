@@ -23,7 +23,6 @@ func init() {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, module := range info.Deps {
 			if module.Path == "github.com/libsql/libsql-client-go" {
-				fmt.Println(module.Version)
 				parts := strings.Split(module.Version, "-")
 				if len(parts) == 3 {
 					commitHash = parts[2][:6]
