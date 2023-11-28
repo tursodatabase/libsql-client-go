@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,7 +28,7 @@ func (v Value) ToValue(columnType *string) any {
 		}
 		return integer
 	} else if columnType != nil {
-		if (*columnType == "TIMESTAMP" || *columnType == "DATETIME") && v.Type == "text" {
+		if (strings.ToLower(*columnType) == "timestamp" || strings.ToLower(*columnType) == "datetime") && v.Type == "text" {
 			for _, format := range []string{
 				"2006-01-02 15:04:05.999999999-07:00",
 				"2006-01-02T15:04:05.999999999-07:00",
