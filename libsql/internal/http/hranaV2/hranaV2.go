@@ -8,13 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/libsql/libsql-client-go/libsql/internal/hrana"
-	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 	"io"
 	"net/http"
+	net_url "net/url"
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/libsql/libsql-client-go/libsql/internal/hrana"
+	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
 )
 
 var commitHash string
@@ -182,7 +184,11 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	}
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", url+"/v2/pipeline", bytes.NewReader(reqBody))
+	pipelineURL, err := net_url.JoinPath(url, "/v2/pipeline")
+	if err != nil {
+		return hrana.PipelineResponse{}, false, err
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", pipelineURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return hrana.PipelineResponse{}, false, err
 	}
