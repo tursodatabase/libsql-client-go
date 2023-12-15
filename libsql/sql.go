@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/libsql/libsql-client-go/libsql/internal/http"
@@ -78,7 +77,7 @@ func (c config) connector(dbPath string) (driver.Connector, error) {
 		expectedDrivers := []string{"sqlite", "sqlite3"}
 		presentDrivers := sql.Drivers()
 		for _, expectedDriver := range expectedDrivers {
-			if slices.Contains(presentDrivers, expectedDriver) {
+			if Contains(presentDrivers, expectedDriver) {
 				db, err := sql.Open(expectedDriver, dbPath)
 				if err != nil {
 					return nil, err
@@ -274,7 +273,7 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 		expectedDrivers := []string{"sqlite", "sqlite3"}
 		presentDrivers := sql.Drivers()
 		for _, expectedDriver := range expectedDrivers {
-			if slices.Contains(presentDrivers, expectedDriver) {
+			if Contains(presentDrivers, expectedDriver) {
 				db, err := sql.Open(expectedDriver, dbUrl)
 				if err != nil {
 					return nil, err
@@ -331,4 +330,19 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 
 func init() {
 	sql.Register("libsql", Driver{})
+}
+
+// backported from Go 1.21
+
+func Contains[S ~[]E, E comparable](s S, v E) bool {
+	return Index(s, v) >= 0
+}
+
+func Index[S ~[]E, E comparable](s S, v E) int {
+	for i := range s {
+		if v == s[i] {
+			return i
+		}
+	}
+	return -1
 }
