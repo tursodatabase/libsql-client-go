@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libsql/libsql-client-go/libsql/internal/hrana"
-	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/hrana"
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
 )
 
 var commitHash string
@@ -24,7 +24,7 @@ var commitHash string
 func init() {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		for _, module := range info.Deps {
-			if module.Path == "github.com/libsql/libsql-client-go" {
+			if module.Path == "github.com/tursodatabase/libsql-client-go" {
 				parts := strings.Split(module.Version, "-")
 				if len(parts) == 3 {
 					commitHash = parts[2][:6]

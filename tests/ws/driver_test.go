@@ -6,11 +6,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
-	"github.com/libsql/libsql-client-go/libsql"
 	"os"
 	"testing"
 
-	_ "github.com/libsql/libsql-client-go/libsql"
+	"github.com/tursodatabase/libsql-client-go/libsql"
+
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 // setupDB sets up a test database by connecting to libsql server and creates a `test` table

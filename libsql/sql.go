@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/libsql/libsql-client-go/libsql/internal/http"
-	"github.com/libsql/libsql-client-go/libsql/internal/ws"
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/http"
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/ws"
 )
 
 type config struct {

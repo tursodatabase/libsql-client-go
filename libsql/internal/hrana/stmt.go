@@ -1,6 +1,6 @@
 package hrana
 
-import "github.com/libsql/libsql-client-go/libsql/internal/http/shared"
+import "github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
 
 type Stmt struct {
 	Sql       *string    `json:"sql,omitempty"`
