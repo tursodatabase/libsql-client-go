@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 
@@ -151,7 +152,10 @@ func runCounterExample(dbPath string) {
 		os.Exit(1)
 	}
 	// Defer a rollback in case anything fails.
-	defer tx.Rollback()
+	defer func() {
+		err := tx.Rollback()
+		log.Fatal(err)
+	}()
 	rows = queryTx(ctx, tx, `SELECT * FROM counter WHERE (country = "PL" AND city = "WAW") OR (country = "FI" AND city = "HEL")`)
 	wawValue := -1
 	helValue := -1
