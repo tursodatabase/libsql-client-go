@@ -12,6 +12,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func pingContext(ctx context.Context, db *sql.DB) {
+	err := db.PingContext(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to ping db: %s", err)
+		os.Exit(1)
+	}
+}
+
 func exec(ctx context.Context, db *sql.DB, stmt string, args ...any) sql.Result {
 	res, err := db.ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -64,6 +72,9 @@ func runCounterExample(dbPath string) {
 		os.Exit(1)
 	}
 	ctx := context.Background()
+
+	pingContext(ctx, db)
+
 	exec(ctx, db, "CREATE TABLE IF NOT EXISTS counter(country TEXT, city TEXT, value INT, PRIMARY KEY(country, city)) WITHOUT ROWID")
 
 	incCounterStatementPositionalArgs := "INSERT INTO counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?"
@@ -154,7 +165,9 @@ func runCounterExample(dbPath string) {
 	// Defer a rollback in case anything fails.
 	defer func() {
 		err := tx.Rollback()
-		log.Fatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}()
 	rows = queryTx(ctx, tx, `SELECT * FROM counter WHERE (country = "PL" AND city = "WAW") OR (country = "FI" AND city = "HEL")`)
 	wawValue := -1
