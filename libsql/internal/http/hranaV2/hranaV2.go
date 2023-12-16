@@ -89,6 +89,15 @@ type hranaV2Conn struct {
 	streamClosed bool
 }
 
+func (h *hranaV2Conn) Ping() error {
+	return h.PingContext(context.Background())
+}
+
+func (h *hranaV2Conn) PingContext(ctx context.Context) error {
+	_, err := h.executeStmt(ctx, "SELECT 1", nil, false)
+	return err
+}
+
 func (h *hranaV2Conn) Prepare(query string) (driver.Stmt, error) {
 	return h.PrepareContext(context.Background(), query)
 }
