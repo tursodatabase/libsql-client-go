@@ -1,7 +1,7 @@
 package hrana
 
 import (
-	"github.com/libsql/libsql-client-go/libsql/internal/http/shared"
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
 )
 
 type StreamRequest struct {

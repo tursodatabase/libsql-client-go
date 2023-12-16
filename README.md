@@ -1,6 +1,6 @@
 # Go SDK for libSQL
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/libsql/libsql-client-go/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/tursodatabase/libsql-client-go/blob/main/LICENSE)
 
 This module implements a libSQL driver for the standard Go [database/sql
 package]. You can use it to interact with the following types of databases:
@@ -13,14 +13,14 @@ package]. You can use it to interact with the following types of databases:
 Install the driver into your module:
 
 ```bash
-go get github.com/libsql/libsql-client-go
+go get github.com/tursodatabase/libsql-client-go
 ```
 
 Import the driver into your code using a blank import:
 
 ```go
 import (
-	_ "github.com/libsql/libsql-client-go/libsql"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 ```
 
@@ -50,7 +50,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/libsql/libsql-client-go/libsql"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 var dbUrl = "http://127.0.0.1:8080"
@@ -80,7 +80,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/libsql/libsql-client-go/libsql"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 	_ "modernc.org/sqlite"
 )
 

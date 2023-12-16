@@ -7,16 +7,17 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/libsql/libsql-client-go/libsql"
 	"math/rand"
 	"os"
 	"runtime/debug"
 	"testing"
 	"time"
 
+	"github.com/tursodatabase/libsql-client-go/libsql"
+
 	"golang.org/x/sync/errgroup"
 
-	_ "github.com/libsql/libsql-client-go/libsql"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 type T struct {
