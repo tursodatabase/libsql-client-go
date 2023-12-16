@@ -101,6 +101,15 @@ func (s stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (drive
 	return s.c.QueryContext(ctx, s.query, args)
 }
 
+func (c *conn) Ping() error {
+	return c.PingContext(context.Background())
+}
+
+func (c *conn) PingContext(ctx context.Context) error {
+	_, err := c.ws.exec(ctx, "SELECT 1", params{}, false)
+	return err
+}
+
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
 	return c.PrepareContext(context.Background(), query)
 }

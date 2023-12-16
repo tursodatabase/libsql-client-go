@@ -70,6 +70,26 @@ func assertRows(ctx context.Context, t *testing.T, db *sql.DB) {
 	}
 }
 
+func TestPing(t *testing.T) {
+	ctx := context.Background()
+	db := setupDB(ctx, t)
+
+	// This ping should succeed because the database is up and running
+	err := db.PingContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupDB(ctx, t, db)
+		// This ping should return an error because the database is already closed
+		err = db.PingContext(ctx)
+		if err == nil {
+			t.Fatal("db.Ping succeeded when it should have failed")
+		}
+	})
+
+}
+
 func TestQueryExec(t *testing.T) {
 	ctx := context.Background()
 	db := setupDB(ctx, t)
