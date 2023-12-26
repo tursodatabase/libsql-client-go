@@ -147,13 +147,16 @@ func (h hranaV2Tx) Rollback() error {
 }
 
 func (h *hranaV2Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	if opts.ReadOnly {
-		return nil, fmt.Errorf("read only transactions are not supported")
-	}
 	if opts.Isolation != driver.IsolationLevel(sql.LevelDefault) {
 		return nil, fmt.Errorf("isolation level %d is not supported", opts.Isolation)
 	}
-	_, err := h.ExecContext(ctx, "BEGIN", nil)
+
+	query := "BEGIN"
+	if opts.ReadOnly {
+		query += " READONLY"
+	}
+
+	_, err := h.ExecContext(ctx, query, nil)
 	if err != nil {
 		return nil, err
 	}
