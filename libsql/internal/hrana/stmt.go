@@ -1,9 +1,6 @@
 package hrana
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
 )
 
@@ -58,19 +55,4 @@ func (s *Stmt) AddNamedArgs(args map[string]any) error {
 	}
 	s.NamedArgs = argValues
 	return nil
-}
-
-func (s *Stmt) MarshalJSON() ([]byte, error) {
-	type Alias Stmt
-	var repIndex string
-	if s.ReplicationIndex != nil {
-		repIndex = fmt.Sprint(*s.ReplicationIndex)
-	}
-	return json.Marshal(&struct {
-		ReplicationIndex string `json:"replication_index,omitempty"`
-		*Alias
-	}{
-		ReplicationIndex: repIndex,
-		Alias:            (*Alias)(s),
-	})
 }

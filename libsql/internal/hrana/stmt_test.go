@@ -1,8 +1,6 @@
 package hrana
 
 import (
-	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -94,41 +92,6 @@ func TestStmtWithNamedArgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("got = %v, want %v", stmt.NamedArgs, tt.want)
-			}
-		})
-	}
-}
-
-func TestStmt_MarshalJSON(t *testing.T) {
-	testCases := []struct {
-		ReplicationIndex *uint64
-		expected         []byte
-	}{
-		{
-			ReplicationIndex: uint64Ptr(42),
-			expected:         []byte(`{"replication_index":"42","want_rows":false}`),
-		},
-		{
-			ReplicationIndex: uint64Ptr(0),
-			expected:         []byte(`{"replication_index":"0","want_rows":false}`),
-		},
-		{
-			ReplicationIndex: nil,
-			expected:         []byte(`{"want_rows":false}`),
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			batchResult := &Stmt{
-				ReplicationIndex: tc.ReplicationIndex,
-			}
-			result, err := json.Marshal(batchResult)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
-			if !reflect.DeepEqual(result, tc.expected) {
-				t.Errorf("JSON output is not correct. got = %s, want = %s", result, tc.expected)
 			}
 		})
 	}

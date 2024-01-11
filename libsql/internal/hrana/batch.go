@@ -1,13 +1,8 @@
 package hrana
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type Batch struct {
 	Steps            []BatchStep `json:"steps"`
-	ReplicationIndex *uint64     `json:"replication_index"`
+	ReplicationIndex *uint64     `json:"replication_index,omitempty"`
 }
 
 type BatchStep struct {
@@ -24,19 +19,4 @@ type BatchCondition struct {
 
 func (b *Batch) Add(stmt Stmt) {
 	b.Steps = append(b.Steps, BatchStep{Stmt: stmt})
-}
-
-func (b *Batch) MarshalJSON() ([]byte, error) {
-	type Alias Batch
-	var repIndex string
-	if b.ReplicationIndex != nil {
-		repIndex = fmt.Sprint(*b.ReplicationIndex)
-	}
-	return json.Marshal(&struct {
-		ReplicationIndex string `json:"replication_index,omitempty"`
-		*Alias
-	}{
-		ReplicationIndex: repIndex,
-		Alias:            (*Alias)(b),
-	})
 }
