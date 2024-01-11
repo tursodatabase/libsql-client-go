@@ -1,13 +1,19 @@
 package hrana
 
-import "github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
+)
 
 type Stmt struct {
-	Sql       *string    `json:"sql,omitempty"`
-	SqlId     *int32     `json:"sql_id,omitempty"`
-	Args      []Value    `json:"args,omitempty"`
-	NamedArgs []NamedArg `json:"named_args,omitempty"`
-	WantRows  bool       `json:"want_rows"`
+	Sql              *string    `json:"sql,omitempty"`
+	SqlId            *int32     `json:"sql_id,omitempty"`
+	Args             []Value    `json:"args,omitempty"`
+	NamedArgs        []NamedArg `json:"named_args,omitempty"`
+	WantRows         bool       `json:"want_rows"`
+	ReplicationIndex *uint64    `json:"replication_index,omitempty"`
 }
 
 type NamedArg struct {
@@ -52,4 +58,19 @@ func (s *Stmt) AddNamedArgs(args map[string]any) error {
 	}
 	s.NamedArgs = argValues
 	return nil
+}
+
+func (s *Stmt) MarshalJSON() ([]byte, error) {
+	type Alias Stmt
+	var repIndex string
+	if s.ReplicationIndex != nil {
+		repIndex = fmt.Sprint(*s.ReplicationIndex)
+	}
+	return json.Marshal(&struct {
+		ReplicationIndex string `json:"replication_index,omitempty"`
+		*Alias
+	}{
+		ReplicationIndex: repIndex,
+		Alias:            (*Alias)(s),
+	})
 }
