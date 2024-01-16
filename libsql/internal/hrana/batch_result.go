@@ -26,7 +26,6 @@ func (b *BatchResult) UnmarshalJSON(data []byte) error {
 	}
 
 	if aux.ReplicationIndex == nil {
-		b.ReplicationIndex = nil
 		return nil
 	}
 
@@ -36,7 +35,6 @@ func (b *BatchResult) UnmarshalJSON(data []byte) error {
 		b.ReplicationIndex = &repIndex
 	case string:
 		if v == "" {
-			b.ReplicationIndex = nil
 			return nil
 		}
 		repIndex, err := strconv.ParseUint(v, 10, 64)

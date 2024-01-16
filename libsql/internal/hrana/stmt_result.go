@@ -42,7 +42,6 @@ func (r *StmtResult) UnmarshalJSON(data []byte) error {
 	}
 
 	if aux.ReplicationIndex == nil {
-		r.ReplicationIndex = nil
 		return nil
 	}
 
@@ -52,7 +51,6 @@ func (r *StmtResult) UnmarshalJSON(data []byte) error {
 		r.ReplicationIndex = &repIndex
 	case string:
 		if v == "" {
-			r.ReplicationIndex = nil
 			return nil
 		}
 		repIndex, err := strconv.ParseUint(v, 10, 64)
