@@ -1,6 +1,7 @@
 package hrana
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -41,7 +42,7 @@ func TestBatchResult_UnmarshalJSON(t *testing.T) {
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			batchResult := &BatchResult{}
-			err := batchResult.UnmarshalJSON(tc.jsonData)
+			err := json.Unmarshal(tc.jsonData, batchResult)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
