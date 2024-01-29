@@ -1,116 +1,169 @@
-# Go SDK for libSQL
+<p align="center">
+  <a href="https://docs.turso.tech/sdk/go/quickstart">
+    <img alt="Turso + Go cover" src="https://github.com/tursodatabase/libsql-client-go/assets/950181/4edaaa78-aa41-4aa2-9d45-d21bbe4e807b" width="1000">
+    <h3 align="center">Turso + Go</h3>
+  </a>
+</p>
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/tursodatabase/libsql-client-go/blob/main/LICENSE)
+<p align="center">
+  Turso is a SQLite-compatible database built on libSQL.
+</p>
 
-This module implements a libSQL driver for the standard Go [database/sql
-package]. You can use it to interact with the following types of databases:
+<p align="center">
+  <a href="https://turso.tech"><strong>Turso</strong></a> ·
+  <a href="https://docs.turso.tech/quickstart"><strong>Quickstart</strong></a> ·
+  <a href="/examples"><strong>Examples</strong></a> ·
+  <a href="https://docs.turso.tech"><strong>Docs</strong></a> ·
+  <a href="https://discord.com/invite/4B5D7hYwub"><strong>Discord</strong></a> ·
+  <a href="https://blog.turso.tech/"><strong>Tutorials</strong></a>
+</p>
 
-- Local SQLite database files
-- [libSQL sqld] instances (including [Turso])
+---
 
-## Installation
-
-Install the driver into your module:
+## Install
 
 ```bash
 go get github.com/tursodatabase/libsql-client-go
 ```
 
-Import the driver into your code using a blank import:
+## Connect
+
+This module implements a libSQL driver for the standard Go [`database/sql`](https://pkg.go.dev/database/sql) package that works with [Turso](#turso), [local SQLite](#local-turso), and [libSQL server](#libsql-server).
+
+### Turso
+
+Follow the [Turso Quickstart](https://docs.turso.tech/quickstart) to create an account, database, auth token, and connect to the shell to create a schema.
 
 ```go
+package main
+
 import (
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
+  "database/sql"
+  "fmt"
+  "os"
+
+  _ "github.com/tursodatabase/libsql-client-go/libsql"
 )
+
+func main() {
+  url := "libsql://[DATABASE].turso.io?authToken=[TOKEN]"
+
+  db, err := sql.Open("libsql", url)
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
+    os.Exit(1)
+  }
+  defer db.Close()
+
+  ctx := context.Background()
+}
 ```
 
-Ensure all the module requirements are up to date:
-
-```bash
-go mod tidy
-```
-
-### Add support for sqlite3 database files
+### Local SQLite
 
 To use a sqlite3 database file, you must also install and import one of the
 following SQLite drivers:
 
-- [modernc.org/sqlite] (non-CGO, recommended)
-- [github.com/mattn/go-sqlite3]
-
-This enables the use of `file:` URLs with this driver.
-
-## Open a connection to sqld
-
-Specify the "libsql" driver and a database URL in your call to `sql.Open`:
+- [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (non-CGO, recommended)
+- [github.com/mattn/go-sqlite3](https://pkg.go.dev/github.com/mattn/go-sqlite3)
 
 ```go
 import (
-	"database/sql"
-	"fmt"
-	"os"
+  "database/sql"
+  "fmt"
+  "os"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
+  _ "github.com/tursodatabase/libsql-client-go/libsql"
+  _ "modernc.org/sqlite"
 )
 
-var dbUrl = "http://127.0.0.1:8080"
-db, err := sql.Open("libsql", dbUrl)
-if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dbUrl, err)
-    os.Exit(1)
+func main() {
+  var url = "file:path/to/file.db"
+
+  db, err := sql.Open("libsql", url)
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
+      os.Exit(1)
+  }
 }
 ```
 
-If your sqld instance is managed by Turso, the database URL must contain a
-valid database auth token in the query string:
+### libSQL Server
+
+You can use this module with [libSQL server](https://github.com/tursodatabase/libsql/tree/main/libsql-server) directly using one of these methods [here](https://github.com/tursodatabase/libsql/blob/main/docs/BUILD-RUN.md).
 
 ```go
-var dbUrl = "libsql://[your-database].turso.io?authToken=[your-auth-token]"
-```
+package main
 
-## Open a connection to a local sqlite3 database file
-
-You can use a `file:` URL to locate a sqlite3 database file for use with this
-driver. The example below assumes that the package `modernc.org/sqlite` is
-installed:
-
-```go
 import (
-	"database/sql"
-	"fmt"
-	"os"
+  "database/sql"
+  "fmt"
+  "os"
 
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
-	_ "modernc.org/sqlite"
+  _ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
-var dbUrl = "file:path/to/file.db"
-db, err := sql.Open("libsql", dbUrl)
-if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dbUrl, err)
+func main() {
+  var url = "http://127.0.0.1:8080"
+
+  db, err := sql.Open("libsql", url)
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
     os.Exit(1)
+  }
 }
 ```
 
-## Compatibility with database/sql
+## Execute
 
-This driver currently does not support prepared statements using [db.Prepare()]
-when querying sqld over HTTP.
+You can `database/sql` as you normally would:
+
+```go
+type User struct {
+  ID   int
+  Name string
+}
+
+func queryUsers(db *sql.DB)  {
+  rows, err := db.Query("SELECT * FROM users")
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "failed to execute query: %v\n", err)
+    os.Exit(1)
+  }
+  defer rows.Close()
+
+  var users []User
+
+  for rows.Next() {
+    var user User
+
+    if err := rows.Scan(&user.ID, &user.Name); err != nil {
+      fmt.Println("Error scanning row:", err)
+      return
+    }
+
+    users = append(users, user)
+    fmt.Println(user.ID, user.Name)
+  }
+
+  if err := rows.Err(); err != nil {
+    fmt.Println("Error during rows iteration:", err)
+  }
+}
+```
+
+Then simply update `func main()` and pass `db`:
+
+```go
+queryUsers(db)
+```
+
+## Limitations
+
+- **This library will be replaced with [`go-libsql`](https://github.com/libsql/go-libsql) once stable.**
+- This driver currently does not support prepared statements using `db.Prepare` when querying sqld over HTTP.
+- This driver does not support embedded replicas &mdash; see [`go-libsql`](https://github.com/libsql/go-libsql).
 
 ## License
 
 This project is licensed under the MIT license.
-
-### Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in `sqld` by you, shall be licensed as MIT, without any additional
-terms or conditions.
-
-
-[database/sql package]: https://pkg.go.dev/database/sql
-[libSQL sqld]: https://github.com/libsql/sqld/
-[Turso]: https://turso.tech
-[modernc.org/sqlite]: https://pkg.go.dev/modernc.org/sqlite
-[github.com/mattn/go-sqlite3]: https://pkg.go.dev/github.com/mattn/go-sqlite3
-[db.Prepare()]: https://pkg.go.dev/database/sql#DB.Prepare
