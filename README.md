@@ -158,7 +158,7 @@ queryUsers(db)
 
 ## Limitations
 
-- This driver currently does not support prepared statements using `db.Prepare` when querying sqld over HTTP.
+- This driver currently does not support prepared statements using [`db.Prepare`](https://pkg.go.dev/database/sql#DB.Prepare) when querying sqld over HTTP.
 - This driver does not support embedded replicas &mdash; see [`go-libsql`](https://github.com/libsql/go-libsql) (uses CGO).
 
 ## License
