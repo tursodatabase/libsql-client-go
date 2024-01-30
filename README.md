@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  Turso is a SQLite-compatible database built on libSQL.
+  Turso is a SQLite-compatible database built on <a href="https://turso.tech/libsql">libSQL</a>.
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 ## Install
 
 ```bash
-go get github.com/tursodatabase/libsql-client-go
+go get github.com/tursodatabase/libsql-client-go/libsql
 ```
 
 ## Connect
@@ -46,7 +46,7 @@ import (
 )
 
 func main() {
-  url := "libsql://[DATABASE].turso.io?authToken=[TOKEN]"
+  url := "libsql://[DATABASE_NAME]-[USERNAME].turso.io?authToken=[TOKEN]"
 
   db, err := sql.Open("libsql", url)
   if err != nil {
@@ -54,8 +54,6 @@ func main() {
     os.Exit(1)
   }
   defer db.Close()
-
-  ctx := context.Background()
 }
 ```
 
@@ -160,9 +158,8 @@ queryUsers(db)
 
 ## Limitations
 
-- **This library will be replaced with [`go-libsql`](https://github.com/libsql/go-libsql) once stable.**
 - This driver currently does not support prepared statements using `db.Prepare` when querying sqld over HTTP.
-- This driver does not support embedded replicas &mdash; see [`go-libsql`](https://github.com/libsql/go-libsql).
+- This driver does not support embedded replicas &mdash; see [`go-libsql`](https://github.com/libsql/go-libsql) (uses CGO).
 
 ## License
 
