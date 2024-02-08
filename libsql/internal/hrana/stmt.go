@@ -1,13 +1,16 @@
 package hrana
 
-import "github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
+import (
+	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
+)
 
 type Stmt struct {
-	Sql       *string    `json:"sql,omitempty"`
-	SqlId     *int32     `json:"sql_id,omitempty"`
-	Args      []Value    `json:"args,omitempty"`
-	NamedArgs []NamedArg `json:"named_args,omitempty"`
-	WantRows  bool       `json:"want_rows"`
+	Sql              *string    `json:"sql,omitempty"`
+	SqlId            *int32     `json:"sql_id,omitempty"`
+	Args             []Value    `json:"args,omitempty"`
+	NamedArgs        []NamedArg `json:"named_args,omitempty"`
+	WantRows         bool       `json:"want_rows"`
+	ReplicationIndex *uint64    `json:"replication_index,omitempty"`
 }
 
 type NamedArg struct {

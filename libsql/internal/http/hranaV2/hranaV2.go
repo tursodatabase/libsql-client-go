@@ -37,7 +37,7 @@ func init() {
 }
 
 func Connect(url, jwt, host string) driver.Conn {
-	return &hranaV2Conn{url, jwt, host, "", false}
+	return &hranaV2Conn{url, jwt, host, "", false, 0}
 }
 
 type hranaV2Stmt struct {
@@ -82,11 +82,12 @@ func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue
 }
 
 type hranaV2Conn struct {
-	url          string
-	jwt          string
-	host         string
-	baton        string
-	streamClosed bool
+	url              string
+	jwt              string
+	host             string
+	baton            string
+	streamClosed     bool
+	replicationIndex uint64
 }
 
 func (h *hranaV2Conn) Ping() error {
@@ -168,6 +169,9 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if h.baton != "" {
 		msg.Baton = h.baton
 	}
+	if h.replicationIndex > 0 {
+		addReplicationIndex(msg, h.replicationIndex)
+	}
 	result, streamClosed, err := sendPipelineRequest(ctx, msg, h.url, h.jwt, h.host)
 	if streamClosed {
 		h.streamClosed = true
@@ -183,7 +187,46 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if result.BaseUrl != "" {
 		h.url = result.BaseUrl
 	}
+	if idx := getReplicationIndex(&result); idx > h.replicationIndex {
+		h.replicationIndex = idx
+	}
 	return &result, nil
+}
+
+func addReplicationIndex(msg *hrana.PipelineRequest, replicationIndex uint64) {
+	for i := range msg.Requests {
+		if msg.Requests[i].Stmt != nil && msg.Requests[i].Stmt.ReplicationIndex == nil {
+			msg.Requests[i].Stmt.ReplicationIndex = &replicationIndex
+		} else if msg.Requests[i].Batch != nil && msg.Requests[i].Batch.ReplicationIndex == nil {
+			msg.Requests[i].Batch.ReplicationIndex = &replicationIndex
+		}
+	}
+}
+
+func getReplicationIndex(response *hrana.PipelineResponse) uint64 {
+	if response == nil || len(response.Results) == 0 {
+		return 0
+	}
+	var replicationIndex uint64
+	for _, result := range response.Results {
+		if result.Response == nil {
+			continue
+		}
+		if result.Response.Type == "execute" {
+			if res, err := result.Response.ExecuteResult(); err == nil && res.ReplicationIndex != nil {
+				if *res.ReplicationIndex > replicationIndex {
+					replicationIndex = *res.ReplicationIndex
+				}
+			}
+		} else if result.Response.Type == "batch" {
+			if res, err := result.Response.BatchResult(); err == nil && res.ReplicationIndex != nil {
+				if *res.ReplicationIndex > replicationIndex {
+					replicationIndex = *res.ReplicationIndex
+				}
+			}
+		}
+	}
+	return replicationIndex
 }
 
 func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url string, jwt string, host string) (result hrana.PipelineResponse, streamClosed bool, err error) {

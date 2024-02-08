@@ -1,7 +1,8 @@
 package hrana
 
 type Batch struct {
-	Steps []BatchStep `json:"steps"`
+	Steps            []BatchStep `json:"steps"`
+	ReplicationIndex *uint64     `json:"replication_index,omitempty"`
 }
 
 type BatchStep struct {
