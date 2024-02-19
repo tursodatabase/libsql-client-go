@@ -15,152 +15,31 @@
   <a href="/examples"><strong>Examples</strong></a> ·
   <a href="https://docs.turso.tech"><strong>Docs</strong></a> ·
   <a href="https://discord.com/invite/4B5D7hYwub"><strong>Discord</strong></a> ·
-  <a href="https://blog.turso.tech/"><strong>Tutorials</strong></a>
+  <a href="https://blog.turso.tech/"><strong>Blog &amp; Tutorials</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://discord.com/invite/4B5D7hYwub">
+    <img src="https://dcbadge.vercel.app/api/server/4B5D7hYwub?style=flat" alt="discord activity" title="join us on discord" />
+  </a>
 </p>
 
 ---
 
-## Install
+## Documentation
 
-```bash
-go get github.com/tursodatabase/libsql-client-go/libsql
-```
+1. [Turso Quickstart](https://docs.turso.tech/quickstart) &mdash; Learn how create and connect your first database.
+2. [SDK Quickstart](https://docs.turso.tech/sdk/go/quickstart) &mdash; Learn how to install and execute queries using the libSQL client.
 
-## Connect
+### What is Turso?
 
-This module implements a libSQL driver for the standard Go [`database/sql`](https://pkg.go.dev/database/sql) package that works with [Turso](#turso), [local SQLite](#local-turso), and [libSQL server](#libsql-server).
+[Turso](https://turso.tech) is a SQLite-compatible database built on [libSQL](https://docs.turso.tech/libsql), the Open Contribution fork of SQLite. It enables scaling to hundreds of thousands of databases per organization and supports replication to any location, including your own servers, for microsecond-latency access.
 
-### Turso
+Learn more about what you can do with Turso:
 
-Follow the [Turso Quickstart](https://docs.turso.tech/quickstart) to create an account, database, auth token, and connect to the shell to create a schema.
-
-```go
-package main
-
-import (
-  "database/sql"
-  "fmt"
-  "os"
-
-  _ "github.com/tursodatabase/libsql-client-go/libsql"
-)
-
-func main() {
-  url := "libsql://[DATABASE_NAME]-[USERNAME].turso.io?authToken=[TOKEN]"
-
-  db, err := sql.Open("libsql", url)
-  if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
-    os.Exit(1)
-  }
-  defer db.Close()
-}
-```
-
-### Local SQLite
-
-To use a sqlite3 database file, you must also install and import one of the
-following SQLite drivers:
-
-- [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) (non-CGO, recommended)
-- [github.com/mattn/go-sqlite3](https://pkg.go.dev/github.com/mattn/go-sqlite3)
-
-```go
-import (
-  "database/sql"
-  "fmt"
-  "os"
-
-  _ "github.com/tursodatabase/libsql-client-go/libsql"
-  _ "modernc.org/sqlite"
-)
-
-func main() {
-  var url = "file:path/to/file.db"
-
-  db, err := sql.Open("libsql", url)
-  if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
-      os.Exit(1)
-  }
-}
-```
-
-### libSQL Server
-
-You can use this module with [libSQL server](https://github.com/tursodatabase/libsql/tree/main/libsql-server) directly using one of these methods [here](https://github.com/tursodatabase/libsql/blob/main/docs/BUILD-RUN.md).
-
-```go
-package main
-
-import (
-  "database/sql"
-  "fmt"
-  "os"
-
-  _ "github.com/tursodatabase/libsql-client-go/libsql"
-)
-
-func main() {
-  var url = "http://127.0.0.1:8080"
-
-  db, err := sql.Open("libsql", url)
-  if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to open db %s: %s", url, err)
-    os.Exit(1)
-  }
-}
-```
-
-## Execute
-
-You can `database/sql` as you normally would:
-
-```go
-type User struct {
-  ID   int
-  Name string
-}
-
-func queryUsers(db *sql.DB)  {
-  rows, err := db.Query("SELECT * FROM users")
-  if err != nil {
-    fmt.Fprintf(os.Stderr, "failed to execute query: %v\n", err)
-    os.Exit(1)
-  }
-  defer rows.Close()
-
-  var users []User
-
-  for rows.Next() {
-    var user User
-
-    if err := rows.Scan(&user.ID, &user.Name); err != nil {
-      fmt.Println("Error scanning row:", err)
-      return
-    }
-
-    users = append(users, user)
-    fmt.Println(user.ID, user.Name)
-  }
-
-  if err := rows.Err(); err != nil {
-    fmt.Println("Error during rows iteration:", err)
-  }
-}
-```
-
-Then simply update `func main()` and pass `db`:
-
-```go
-queryUsers(db)
-```
-
-## Limitations
-
-- This driver currently does not support prepared statements using [`db.Prepare`](https://pkg.go.dev/database/sql#DB.Prepare) when querying sqld over HTTP.
-- This driver does not support embedded replicas &mdash; see [`go-libsql`](https://github.com/libsql/go-libsql) (uses CGO).
-
-## License
-
-This project is licensed under the MIT license.
+- [Embedded Replicas](https://docs.turso.tech/features/embedded-replicas)
+- [Platform API](https://docs.turso.tech/features/platform-api)
+- [Data Edge](https://docs.turso.tech/features/data-edge)
+- [Branching](https://docs.turso.tech/features/branching)
+- [Point-in-Time Recovery](https://docs.turso.tech/features/point-in-time-recovery)
+- [Scale to Zero](https://docs.turso.tech/features/scale-to-zero)
