@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  Turso is a SQLite-compatible database built on <a href="https://turso.tech/libsql">libSQL</a>.
+  SQLite for Production. Powered by <a href="https://turso.tech/libsql">libSQL</a>.
 </p>
 
 <p align="center">
