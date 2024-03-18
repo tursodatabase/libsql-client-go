@@ -1,12 +1,12 @@
 <p align="center">
   <a href="https://docs.turso.tech/sdk/go/quickstart">
-    <img alt="Turso + Go cover" src="https://github.com/tursodatabase/libsql-client-go/assets/950181/4edaaa78-aa41-4aa2-9d45-d21bbe4e807b" width="1000">
+    <img alt="Turso + Go cover" src="https://github.com/tursodatabase/libsql-client-go/assets/950181/d1bf85da-b906-4cbd-8b65-533b1307b4ff" width="1000">
     <h3 align="center">Turso + Go</h3>
   </a>
 </p>
 
 <p align="center">
-  Turso is a SQLite-compatible database built on <a href="https://turso.tech/libsql">libSQL</a>.
+  SQLite for Production. Powered by <a href="https://turso.tech/libsql">libSQL</a>.
 </p>
 
 <p align="center">
