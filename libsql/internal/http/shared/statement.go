@@ -147,6 +147,15 @@ func ConvertArgs(args []driver.NamedValue) (Params, error) {
 	return parameters, nil
 }
 
+func isExplain(stmt string) bool {
+	statementStream := antlr.NewInputStream(stmt)
+
+	lexer := sqliteparser.NewSQLiteLexer(statementStream)
+	tokenStream := antlr.NewCommonTokenStream(lexer, 0)
+	firstToken := tokenStream.LT(1)
+	return firstToken.GetTokenType() == sqliteparser.SQLiteParserEXPLAIN_
+}
+
 func generateStatementParameters(stmt string, queryParams Params, positionalParametersOffset int) (Params, error) {
 	nameParams, positionalParamsCount, err := extractParameters(stmt)
 	if err != nil {
@@ -158,7 +167,11 @@ func generateStatementParameters(stmt string, queryParams Params, positionalPara
 	switch queryParams.Type() {
 	case positionalParameters:
 		if positionalParametersOffset+positionalParamsCount > len(queryParams.positional) {
-			return Params{}, fmt.Errorf("missing positional parameters")
+			if isExplain(stmt) {
+				return Params{}, nil
+			} else {
+				return Params{}, fmt.Errorf("missing positional parameters")
+			}
 		}
 		stmtParams.positional = queryParams.positional[positionalParametersOffset : positionalParametersOffset+positionalParamsCount]
 	case namedParameters:
