@@ -3,13 +3,13 @@ module github.com/tursodatabase/libsql-client-go
 go 1.20
 
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9
-	github.com/libsql/sqlite-antlr4-parser v0.0.0-20230802215326-5cb5bb604475
+	github.com/antlr4-go/antlr/v4 v4.13.0
+	github.com/libsql/sqlite-antlr4-parser v0.0.0-20240323153644-5c63f680a14e
 	golang.org/x/sync v0.3.0
 	nhooyr.io/websocket v1.8.7
 )
 
-require golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
+require golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc // indirect
 
 require (
 	github.com/golang/protobuf v1.5.2 // indirect
