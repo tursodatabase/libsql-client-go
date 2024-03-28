@@ -107,6 +107,24 @@ func (t Table) insertRowsWithArgs(start, count int) {
 	})
 }
 
+func (t Table) insertRowsWithColonNamedArgs(start, count int) {
+	t.insertRowsInternal(start, count, func(i int) sql.Result {
+		return t.db.exec("INSERT INTO "+t.name+" (a, b) VALUES (:Arg1, :Arg2)", sql.Named("Arg1", i), sql.Named("Arg2", i))
+	})
+}
+
+func (t Table) insertRowsWithAtNamedArgs(start, count int) {
+	t.insertRowsInternal(start, count, func(i int) sql.Result {
+		return t.db.exec("INSERT INTO "+t.name+" (a, b) VALUES (@Arg1, @Arg2)", sql.Named("Arg1", i), sql.Named("Arg2", i))
+	})
+}
+
+func (t Table) insertRowsWithDollarNamedArgs(start, count int) {
+	t.insertRowsInternal(start, count, func(i int) sql.Result {
+		return t.db.exec("INSERT INTO "+t.name+" (a, b) VALUES ($Arg1, $Arg2)", sql.Named("Arg1", i), sql.Named("Arg2", i))
+	})
+}
+
 func (t Table) insertRowsInternal(start, count int, execFn func(i int) sql.Result) {
 	for i := 0; i < count; i++ {
 		res := execFn(i + start)
@@ -502,4 +520,17 @@ func TestConcurrentOnSingleConnection(t *testing.T) {
 		return nil
 	}))
 	db.t.FatalOnError(g.Wait())
+}
+
+func TestNamedArgs(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	table := db.createTable()
+	table.insertRowsWithColonNamedArgs(0, 10)
+	table.insertRowsWithAtNamedArgs(10, 10)
+	table.insertRowsWithDollarNamedArgs(20, 10)
+	table.assertRowsCount(30)
+	table.assertRowDoesNotExist(30)
+	table.assertRowExists(0)
+	table.assertRowExists(29)
 }
