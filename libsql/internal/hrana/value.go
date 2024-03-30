@@ -11,12 +11,15 @@ import (
 type Value struct {
 	Type   string `json:"type"`
 	Value  any    `json:"value,omitempty"`
-	Base64 string `json:"base64,omitempty"`
+	Base64 *string `json:"base64,omitempty"`
 }
 
 func (v Value) ToValue(columnType *string) any {
 	if v.Type == "blob" {
-		bytes, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(v.Base64)
+		if v.Base64 == nil {
+			return nil
+		}
+		bytes, err := base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(*v.Base64)
 		if err != nil {
 			return nil
 		}
@@ -65,7 +68,8 @@ func ToValue(v any) (Value, error) {
 		res.Value = text
 	} else if blob, ok := v.([]byte); ok {
 		res.Type = "blob"
-		res.Base64 = base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(blob)
+		b64 := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(blob)
+		res.Base64 = &b64
 	} else if float, ok := v.(float64); ok {
 		res.Type = "float"
 		res.Value = float

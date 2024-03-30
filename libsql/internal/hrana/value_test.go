@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 )
+	
+func toPtr[T any](v T) *T {
+	return &v
+}
 
 func TestValueToValue(t *testing.T) {
 	tests := []struct {
@@ -43,9 +47,17 @@ func TestValueToValue(t *testing.T) {
 			name: "bytes",
 			value: Value{
 				Type:   "blob",
-				Base64: "YmFy",
+				Base64: toPtr("YmFy"),
 			},
 			want: []byte("bar"),
+		},
+		{
+			name: "bytes",
+			value: Value{
+				Type:   "blob",
+				Base64: toPtr(""),
+			},
+			want: []byte{},
 		},
 		{
 			name: "float",
@@ -111,10 +123,10 @@ func TestToValue(t *testing.T) {
 		},
 		{
 			name:  "bytes",
-			value: []byte("bar"),
+			value: []byte{},
 			want: Value{
 				Type:   "blob",
-				Base64: "YmFy",
+				Base64: toPtr(""),
 			},
 		},
 		{
@@ -195,7 +207,7 @@ func TestMarshal(t *testing.T) {
 			name: "bytes",
 			value: Value{
 				Type:   "blob",
-				Base64: "YmFy",
+				Base64: toPtr("YmFy"),
 			},
 			marshaled: `{"type":"blob","base64":"YmFy"}`,
 		},
@@ -263,7 +275,7 @@ func TestUnmarshal(t *testing.T) {
 			name: "bytes",
 			value: Value{
 				Type:   "blob",
-				Base64: "YmFy",
+				Base64: toPtr("YmFy"),
 			},
 			marshaled: `{"type":"blob","base64":"YmFy"}`,
 		},
