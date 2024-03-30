@@ -9,8 +9,8 @@ import (
 )
 
 type Value struct {
-	Type   string `json:"type"`
-	Value  any    `json:"value,omitempty"`
+	Type   string  `json:"type"`
+	Value  any     `json:"value,omitempty"`
 	Base64 *string `json:"base64,omitempty"`
 }
 
