@@ -59,6 +59,24 @@ func TestConvertValue(t *testing.T) {
 			err: nil,
 		},
 		{
+			name:  "boolean_true",
+			value: true,
+			want: map[string]any{
+				"type":  "integer",
+				"value": "1",
+			},
+			err: nil,
+		},
+		{
+			name:  "boolean_false",
+			value: false,
+			want: map[string]any{
+				"type":  "integer",
+				"value": "0",
+			},
+			err: nil,
+		},
+		{
 			name:  "unsupported",
 			value: struct{}{},
 			want:  nil,
