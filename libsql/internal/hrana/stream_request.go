@@ -49,8 +49,20 @@ func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamR
 		if err := stmt.AddArgs(params[idx]); err != nil {
 			return nil, err
 		}
-		batch.Add(*stmt, nil)
+		var condition *BatchCondition
+		if idx > 0 {
+			prev_idx := int32(idx - 1)
+			condition = &BatchCondition{
+				Type: "ok",
+				Step: &prev_idx,
+			}
+		}
+		batch.Add(*stmt, condition)
 	}
+	rollback := "ROLLBACK"
+	last_idx := int32(len(sqls) - 1)
+	batch.Add(Stmt{Sql: &rollback, WantRows: false},
+		&BatchCondition{Type: "not", Cond: &BatchCondition{Type: "ok", Step: &last_idx}})
 	return &StreamRequest{Type: "batch", Batch: batch}, nil
 }
 
