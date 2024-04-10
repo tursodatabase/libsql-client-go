@@ -338,7 +338,8 @@ func (h *hranaV2Conn) ExecContext(ctx context.Context, query string, args []driv
 		}
 		lastInsertRowId := int64(0)
 		affectedRowCount := int64(0)
-		for _, r := range res.StepResults {
+		for idx := 0; idx < len(res.StepResults)-1; idx++ {
+			r := res.StepResults[idx]
 			rowId := r.GetLastInsertRowId()
 			if rowId > 0 {
 				lastInsertRowId = rowId
@@ -457,6 +458,8 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 		if err != nil {
 			return nil, err
 		}
+		res.StepResults = res.StepResults[:len(res.StepResults)-1]
+		res.StepErrors = res.StepErrors[:len(res.StepErrors)-1]
 		return shared.NewRows(&BatchResultRowsProvider{res}), nil
 	default:
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "unknown response type")
