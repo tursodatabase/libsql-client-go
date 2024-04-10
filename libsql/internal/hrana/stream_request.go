@@ -49,7 +49,7 @@ func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamR
 		if err := stmt.AddArgs(params[idx]); err != nil {
 			return nil, err
 		}
-		batch.Add(*stmt)
+		batch.Add(*stmt, nil)
 	}
 	return &StreamRequest{Type: "batch", Batch: batch}, nil
 }

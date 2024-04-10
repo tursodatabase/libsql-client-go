@@ -17,6 +17,6 @@ type BatchCondition struct {
 	Conds []BatchCondition `json:"conds,omitempty"`
 }
 
-func (b *Batch) Add(stmt Stmt) {
-	b.Steps = append(b.Steps, BatchStep{Stmt: stmt})
+func (b *Batch) Add(stmt Stmt, condition *BatchCondition) {
+	b.Steps = append(b.Steps, BatchStep{Stmt: stmt, Condition: condition})
 }
