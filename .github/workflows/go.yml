@@ -19,7 +19,7 @@ jobs:
 
     services:
       sqld:
-        image: ghcr.io/libsql/sqld:latest
+        image: ghcr.io/tursodatabase/libsql-server:latest
         ports:
           - 8080:8080
 
