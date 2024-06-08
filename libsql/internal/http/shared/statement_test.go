@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -48,11 +47,16 @@ func TestExtractParameters(t *testing.T) {
 			positionalParamsCount: 2,
 		},
 		{
+			name:                  "OnlyPositionalParamsWithIndexes",
+			value:                 "select ?1 from ?1",
+			nameParams:            []string{},
+			positionalParamsCount: 2,
+		},
+		{
 			name:                  "PositionalParamsWithIndexes",
 			value:                 "select ? from ?1",
 			nameParams:            []string{},
-			positionalParamsCount: 0,
-			err:                   fmt.Errorf("unsuppoted positional parameter. This driver does not accept positional parameters with indexes (like ?<number>)"),
+			positionalParamsCount: 2,
 		},
 		{
 			name:                  "MixedParams",
@@ -79,6 +83,59 @@ func TestExtractParameters(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotPositionalParamsCount, tt.positionalParamsCount) {
 				t.Errorf("got err %v, want %v", gotErr, tt.err)
+			}
+		})
+	}
+}
+
+func TestUniqueParamCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		stmt     string
+		expected int
+	}{
+		{
+			name:     "NoParams",
+			stmt:     "SELECT * FROM users",
+			expected: 0,
+		},
+		{
+			name:     "SingleNoIndexParam",
+			stmt:     "SELECT * FROM users WHERE id = ?",
+			expected: 1,
+		},
+		{
+			name:     "MultipleNoIndexParams",
+			stmt:     "SELECT * FROM users WHERE id = ? AND name = ?",
+			expected: 2,
+		},
+		{
+			name:     "SingleIndexParam",
+			stmt:     "SELECT * FROM users WHERE id = ?1",
+			expected: 1,
+		},
+		{
+			name:     "MultipleIndexParams",
+			stmt:     "SELECT * FROM users WHERE id = ?1 AND name = ?2",
+			expected: 2,
+		},
+		{
+			name:     "MixedParams",
+			stmt:     "SELECT * FROM users WHERE id = ?1 AND name = ?",
+			expected: 2,
+		},
+		{
+			name:     "RepeatedIndexParams",
+			stmt:     "SELECT * FROM users WHERE id = ?1 AND name = ?1",
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count := uniquePositionalParamCount(tt.stmt)
+			if count != tt.expected {
+				t.Errorf("uniqueParamCount(%q) = %d, want %d", tt.stmt, count, tt.expected)
 			}
 		})
 	}

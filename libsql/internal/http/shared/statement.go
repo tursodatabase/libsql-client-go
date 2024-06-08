@@ -169,11 +169,15 @@ func generateStatementParameters(stmt string, queryParams Params, positionalPara
 		if positionalParametersOffset+positionalParamsCount > len(queryParams.positional) {
 			if isExplain(stmt) {
 				return Params{}, nil
-			} else {
+			}
+			// Positional parameters with indexes most of the time will have fewer args than parameters.
+			if uniquePositionalParamCount(stmt) > len(queryParams.positional) {
 				return Params{}, fmt.Errorf("missing positional parameters")
 			}
+			stmtParams.positional = queryParams.positional[positionalParametersOffset:len(queryParams.positional)]
+		} else {
+			stmtParams.positional = queryParams.positional[positionalParametersOffset : positionalParametersOffset+positionalParamsCount]
 		}
-		stmtParams.positional = queryParams.positional[positionalParametersOffset : positionalParametersOffset+positionalParamsCount]
 	case namedParameters:
 		stmtParametersNeeded := make(map[string]bool)
 		for _, stmtParametersName := range nameParams {
@@ -231,18 +235,51 @@ func extractParameters(stmt string) (nameParams []string, positionalParamsCount 
 }
 
 func isPositionalParameter(param string) (ok bool, err error) {
-	re := regexp.MustCompile(`\?([0-9]*).*`)
+	// ^: asserts the start of the string.
+	// \?: matches a literal question mark character.
+	// (\d+)? captures one more digits (0-9) in a group, but group is optional due to the ? quantifier.
+	// $: asserts the end of thr string so as to avoid this scenario: ?123ABC.
+	re := regexp.MustCompile(`^\?(\d+)?$`)
 	match := re.FindSubmatch([]byte(param))
 	if match == nil {
 		return false, nil
 	}
-
-	posS := string(match[1])
-	if posS == "" {
+	// When an empty string, it means the parameter is a
+	// positional parameter without an index (e.g, ?).
+	if string(match[1]) == "" {
 		return true, nil
 	}
+	// positional parameter with indexes (e.g., ?<numer>).
+	return true, nil
+}
 
-	return true, fmt.Errorf("unsuppoted positional parameter. This driver does not accept positional parameters with indexes (like ?<number>)")
+func uniquePositionalParamCount(stmt string) int {
+	statementStream := antlr.NewInputStream(stmt)
+	sqliteparser.NewSQLiteLexer(statementStream)
+	lexer := sqliteparser.NewSQLiteLexer(statementStream)
+	allTokens := lexer.GetAllTokens()
+	re := regexp.MustCompile(`^\?(\d+)?$`)
+	noIndexCount := 0
+	uniqueIndexCount := make(map[string]bool)
+
+	for _, token := range allTokens {
+		tokenType := token.GetTokenType()
+		if tokenType == sqliteparser.SQLiteLexerBIND_PARAMETER {
+			param := token.GetText()
+			match := re.FindStringSubmatch(param)
+			if match == nil {
+				continue
+			}
+			posS := string(match[1])
+			if posS == "" {
+				noIndexCount++
+				continue
+			}
+			uniqueIndexCount[posS] = true
+		}
+	}
+
+	return noIndexCount + len(uniqueIndexCount)
 }
 
 func removeParamPrefix(paramName string) (string, error) {
