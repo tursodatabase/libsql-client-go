@@ -522,6 +522,32 @@ func TestConcurrentOnSingleConnection(t *testing.T) {
 	db.t.FatalOnError(g.Wait())
 }
 
+func TestParameterSyntaxSupport(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	t1 := db.createTable()
+	t2 := db.createTable()
+	t3 := db.createTable()
+	t4 := db.createTable()
+	t5 := db.createTable()
+
+	t1.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t1.db.exec("INSERT INTO "+t1.name+" VALUES(?1, ?1)", i)
+	})
+	t2.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t2.db.exec("INSERT INTO "+t2.name+" VALUES(?, ?)", i, -1*i)
+	})
+	t3.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t3.db.exec("INSERT INTO "+t3.name+" VALUES(:a, :b)", sql.Named("a", i), sql.Named("b", 0))
+	})
+	t4.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t3.db.exec("INSERT INTO "+t4.name+" VALUES(@a, @a)", sql.Named("a", i), sql.Named("b", 0))
+	})
+	t5.insertRowsInternal(1, 10, func(i int) sql.Result {
+		return t3.db.exec("INSERT INTO "+t5.name+" VALUES($a, $b)", sql.Named("a", i), sql.Named("b", 0))
+	})
+}
+
 func TestNamedArgs(t *testing.T) {
 	t.Parallel()
 	db := getDb(T{t})

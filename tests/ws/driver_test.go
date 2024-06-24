@@ -50,6 +50,8 @@ func assertRows(ctx context.Context, t *testing.T, db *sql.DB) {
 		t.Fatal(err)
 	}
 	defer rows.Close()
+
+	var expectedId int64 = 1
 	for rows.Next() {
 		var id int64
 		var name string
@@ -57,12 +59,13 @@ func assertRows(ctx context.Context, t *testing.T, db *sql.DB) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if id != 1 {
-			t.Fatal("id should be 1")
+		if id != expectedId {
+			t.Fatalf("id should be %d", expectedId)
 		}
 		if name != "hello world" {
 			t.Fatal("name should be hello world")
 		}
+		expectedId++
 	}
 	err = rows.Err()
 	if err != nil {
@@ -359,6 +362,46 @@ func TestExecResult(t *testing.T) {
 	if lastInsertID != 1 {
 		t.Fatal("lastInsertID should be 1")
 	}
+	t.Cleanup(func() {
+		cleanupDB(ctx, t, db)
+	})
+}
+
+func TestParameterSyntaxSupport(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := setupDB(ctx, t)
+
+	_, err := db.ExecContext(ctx, "INSERT INTO test (name) VALUES (?1)", "hello world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
+	_, err = db.ExecContext(ctx, "INSERT INTO test (name) VALUES (?)", "hello world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
+	_, err = db.ExecContext(ctx, "INSERT INTO test (name) VALUES (:a)", sql.Named("a", "hello world"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
+	_, err = db.ExecContext(ctx, "INSERT INTO test (name) VALUES (@a)", sql.Named("a", "hello world"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
+	_, err = db.ExecContext(ctx, "INSERT INTO test (name) VALUES ($a)", sql.Named("a", "hello world"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRows(ctx, t, db)
+
 	t.Cleanup(func() {
 		cleanupDB(ctx, t, db)
 	})

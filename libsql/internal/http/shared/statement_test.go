@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -48,11 +47,16 @@ func TestExtractParameters(t *testing.T) {
 			positionalParamsCount: 2,
 		},
 		{
+			name:                  "OnlyPositionalParamsWithIndexes (dedup)",
+			value:                 "select ?1 from ?1",
+			nameParams:            []string{},
+			positionalParamsCount: 1,
+		},
+		{
 			name:                  "PositionalParamsWithIndexes",
 			value:                 "select ? from ?1",
 			nameParams:            []string{},
-			positionalParamsCount: 0,
-			err:                   fmt.Errorf("unsuppoted positional parameter. This driver does not accept positional parameters with indexes (like ?<number>)"),
+			positionalParamsCount: 2,
 		},
 		{
 			name:                  "MixedParams",
@@ -68,16 +72,16 @@ func TestExtractParameters(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotNameParams, gotPositionalParamsCount, gotErr := extractParameters(tt.value)
+			gotNameParams, gotUniquePositionalParamsCount, gotErr := extractParameters(tt.value)
 			sort.Strings(gotNameParams)
 			sort.Strings(tt.nameParams)
 			if !reflect.DeepEqual(gotNameParams, tt.nameParams) {
 				t.Errorf("got nameParams %#v, want %#v", gotNameParams, tt.nameParams)
 			}
-			if !reflect.DeepEqual(gotPositionalParamsCount, tt.positionalParamsCount) {
-				t.Errorf("got positionalParams %#v, want %#v", gotPositionalParamsCount, tt.positionalParamsCount)
+			if !reflect.DeepEqual(gotUniquePositionalParamsCount, tt.positionalParamsCount) {
+				t.Errorf("got positionalParams %#v, want %#v", gotUniquePositionalParamsCount, tt.positionalParamsCount)
 			}
-			if !reflect.DeepEqual(gotPositionalParamsCount, tt.positionalParamsCount) {
+			if !reflect.DeepEqual(gotUniquePositionalParamsCount, tt.positionalParamsCount) {
 				t.Errorf("got err %v, want %v", gotErr, tt.err)
 			}
 		})

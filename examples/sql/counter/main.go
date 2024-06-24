@@ -79,8 +79,10 @@ func runCounterExample(dbPath string) {
 
 	incCounterStatementPositionalArgs := "INSERT INTO counter(country, city, value) VALUES(?, ?, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ? AND city = ?"
 	exec(ctx, db, incCounterStatementPositionalArgs, "PL", "WAW", "PL", "WAW")
-	exec(ctx, db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
-	exec(ctx, db, incCounterStatementPositionalArgs, "FI", "HEL", "FI", "HEL")
+	exec(ctx, db, incCounterStatementPositionalArgs, "PL", "WAW", "PL", "WAW")
+	incCounterStatementPositionalArgsWithIndexes := "INSERT INTO counter(country, city, value) VALUES(?1, ?2, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = ?1 AND city = ?2"
+	exec(ctx, db, incCounterStatementPositionalArgsWithIndexes, "FI", "HEL")
+	exec(ctx, db, incCounterStatementPositionalArgsWithIndexes, "FI", "HEL")
 	incCounterStatementNamedArgs := "INSERT INTO counter(country, city, value) VALUES(:country, :city, 1) ON CONFLICT DO UPDATE SET value = IFNULL(value, 0) + 1 WHERE country = :country AND city = :city"
 	exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "PL"), sql.Named("city", "WAW"))
 	exec(ctx, db, incCounterStatementNamedArgs, sql.Named("country", "FI"), sql.Named("city", "HEL"))
@@ -164,12 +166,14 @@ func runCounterExample(dbPath string) {
 	}
 	// Defer a rollback in case anything fails.
 	defer func() {
-		err := tx.Rollback()
 		if err != nil {
-			log.Fatal(err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}()
-	rows = queryTx(ctx, tx, `SELECT * FROM counter WHERE (country = "PL" AND city = "WAW") OR (country = "FI" AND city = "HEL")`)
+	rows = queryTx(ctx, tx, `SELECT * FROM counter WHERE (country = 'PL' AND city = 'WAW') OR (country = 'FI' AND city = 'HEL')`) // fails unless '', number 8: https://www.sqlite.org/quirks.html
 	wawValue := -1
 	helValue := -1
 	for rows.Next() {
@@ -178,7 +182,7 @@ func runCounterExample(dbPath string) {
 			city    string
 			value   int
 		}
-		if err := rows.Scan(&row.country, &row.city, &row.value); err != nil {
+		if err = rows.Scan(&row.country, &row.city, &row.value); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to scan row: %s", err)
 			os.Exit(1)
 		}
@@ -189,12 +193,12 @@ func runCounterExample(dbPath string) {
 			helValue = row.value
 		}
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "errors from query: %s", err)
 		os.Exit(1)
 	}
 	if helValue > wawValue {
-		execTx(ctx, tx, `INSERT INTO counter(country, city, value) VALUES("PL", "WAW", ?) ON CONFLICT DO UPDATE SET value = ? WHERE country = "PL" AND city = "WAW"`, helValue, helValue)
+		execTx(ctx, tx, `INSERT INTO counter(country, city, value) VALUES('PL', 'WAW', ?) ON CONFLICT DO UPDATE SET value = ? WHERE country = 'PL' AND city = 'WAW'`, helValue, helValue) // fails unless '', number 8: https://www.sqlite.org/quirks.html
 	}
 	if err = tx.Commit(); err != nil {
 		fmt.Fprintf(os.Stderr, "error commiting the transaction: %s", err)
@@ -328,7 +332,7 @@ func runConcurrentOnOneConnectionExample(dbPath string) {
 	wg.Wait()
 }
 
-var dbUrl = ""
+var dbUrl = "http://127.0.0.1:8080"
 var dbFile = "file:test.db"
 
 func main() {
