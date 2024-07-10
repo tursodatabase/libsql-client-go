@@ -208,8 +208,7 @@ func (c fileConnector) Driver() driver.Driver {
 	return Driver{}
 }
 
-type Driver struct {
-}
+type Driver struct{}
 
 // ExtractJwt extracts the JWT from the URL and removes it from the url.
 func extractJwt(query *url.Values) (string, error) {
@@ -246,17 +245,20 @@ func extractJwt(query *url.Values) (string, error) {
 func extractTls(query *url.Values, scheme string) (bool, error) {
 	tls := query.Get("tls")
 	query.Del("tls")
-	if tls == "" {
+	switch tls {
+	case "":
 		if scheme == "http" || scheme == "ws" {
 			return false, nil
 		} else {
 			return true, nil
 		}
-	} else if tls == "0" {
+	case "0":
 		return false, nil
-	} else if tls == "1" {
+
+	case "1":
+
 		return true, nil
-	} else {
+	default:
 		return true, fmt.Errorf("unknown value of tls query parameter. Valid values are 0 and 1")
 	}
 }
