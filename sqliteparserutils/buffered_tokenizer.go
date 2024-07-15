@@ -37,7 +37,6 @@ func (stream *bufferedTokenizer) load(n int) {
 
 func (stream *bufferedTokenizer) Consume() {
 	stream.load(1)
-	return
 }
 
 func (stream *bufferedTokenizer) Get(k int) antlr.Token {
