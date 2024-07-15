@@ -173,6 +173,12 @@ func (t Table) beginTx() Tx {
 	return Tx{tx, t, nil}
 }
 
+func (t Table) beginReadonlyTx() Tx {
+	tx, err := t.db.BeginTx(t.db.ctx, &sql.TxOptions{ReadOnly: true})
+	t.db.t.FatalOnError(err)
+	return Tx{tx, t, nil}
+}
+
 func (t Table) beginTxWithContext(ctx context.Context) Tx {
 	tx, err := t.db.BeginTx(ctx, nil)
 	t.db.t.FatalOnError(err)
@@ -309,6 +315,47 @@ func TestTransaction(t *testing.T) {
 	tx.assertRowDoesNotExist(20)
 	tx.assertRowExists(0)
 	tx.assertRowExists(19)
+	db.t.FatalOnError(tx.Commit())
+	table.assertRowsCount(20)
+	table.assertRowDoesNotExist(20)
+	table.assertRowExists(0)
+	table.assertRowExists(19)
+}
+
+func TestReadOnlyTransaction(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	table := db.createTable()
+	table.insertRows(0, 10)
+	table.insertRowsWithArgs(10, 10)
+	tx := table.beginReadonlyTx()
+	tx.assertRowsCount(20)
+	tx.assertRowDoesNotExist(20)
+	tx.assertRowExists(0)
+	tx.assertRowExists(19)
+	db.t.FatalOnError(tx.Commit())
+	table.assertRowsCount(20)
+	table.assertRowDoesNotExist(20)
+	table.assertRowExists(0)
+	table.assertRowExists(19)
+}
+
+func TestReadOnlyTransactionFailure(t *testing.T) {
+	t.Parallel()
+	db := getDb(T{t})
+	table := db.createTable()
+	table.insertRows(0, 10)
+	table.insertRowsWithArgs(10, 10)
+	tx := table.beginReadonlyTx()
+	tx.assertRowsCount(20)
+	tx.assertRowDoesNotExist(20)
+	tx.assertRowExists(0)
+	tx.assertRowExists(19)
+	table.insertRows(20, 10)
+	tx.assertRowsCount(30)
+	tx.assertRowDoesNotExist(30)
+	tx.assertRowExists(0)
+	tx.assertRowExists(29)
 	db.t.FatalOnError(tx.Commit())
 	table.assertRowsCount(20)
 	table.assertRowDoesNotExist(20)
