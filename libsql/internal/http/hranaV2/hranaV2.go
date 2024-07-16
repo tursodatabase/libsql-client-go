@@ -299,7 +299,7 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 		}
 		msg.Add(*executeStream)
 	} else {
-		batchStream, err := hrana.BatchStream(stmts, params, wantRows)
+		batchStream, err := hrana.BatchStream(stmts, params, wantRows, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 		}
