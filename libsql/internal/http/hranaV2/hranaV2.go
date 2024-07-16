@@ -299,7 +299,7 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 		}
 		msg.Add(*executeStream)
 	} else {
-		batchStream, err := hrana.BatchStream(stmts, params, wantRows, true)
+		batchStream, err := hrana.BatchStream(stmts, params, wantRows, !h.schemaDb)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 		}
@@ -339,7 +339,11 @@ func (h *hranaV2Conn) ExecContext(ctx context.Context, query string, args []driv
 		}
 		lastInsertRowId := int64(0)
 		affectedRowCount := int64(0)
-		for idx := 0; idx < len(res.StepResults)-1; idx++ {
+		upperBound := len(res.StepResults)
+		if !h.schemaDb {
+			upperBound -= 1
+		}
+		for idx := 0; idx < upperBound; idx++ {
 			r := res.StepResults[idx]
 			rowId := r.GetLastInsertRowId()
 			if rowId > 0 {
@@ -459,8 +463,10 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 		if err != nil {
 			return nil, err
 		}
-		res.StepResults = res.StepResults[:len(res.StepResults)-1]
-		res.StepErrors = res.StepErrors[:len(res.StepErrors)-1]
+		if !h.schemaDb {
+			res.StepResults = res.StepResults[:len(res.StepResults)-1]
+			res.StepErrors = res.StepErrors[:len(res.StepErrors)-1]
+		}
 		return shared.NewRows(&BatchResultRowsProvider{res}), nil
 	default:
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "unknown response type")
