@@ -38,7 +38,7 @@ func ExecuteStoredStream(sqlId int32, params shared.Params, wantRows bool) (*Str
 	return &StreamRequest{Type: "execute", Stmt: stmt}, nil
 }
 
-func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamRequest, error) {
+func BatchStream(sqls []string, params []shared.Params, wantRows bool, transactional bool) (*StreamRequest, error) {
 	batch := &Batch{}
 	for idx, sql := range sqls {
 		s := sql
@@ -50,19 +50,23 @@ func BatchStream(sqls []string, params []shared.Params, wantRows bool) (*StreamR
 			return nil, err
 		}
 		var condition *BatchCondition
-		if idx > 0 {
-			prev_idx := int32(idx - 1)
-			condition = &BatchCondition{
-				Type: "ok",
-				Step: &prev_idx,
+		if transactional {
+			if idx > 0 {
+				prev_idx := int32(idx - 1)
+				condition = &BatchCondition{
+					Type: "ok",
+					Step: &prev_idx,
+				}
 			}
 		}
 		batch.Add(*stmt, condition)
 	}
-	rollback := "ROLLBACK"
-	last_idx := int32(len(sqls) - 1)
-	batch.Add(Stmt{Sql: &rollback, WantRows: false},
-		&BatchCondition{Type: "not", Cond: &BatchCondition{Type: "ok", Step: &last_idx}})
+	if transactional {
+		rollback := "ROLLBACK"
+		last_idx := int32(len(sqls) - 1)
+		batch.Add(Stmt{Sql: &rollback, WantRows: false},
+			&BatchCondition{Type: "not", Cond: &BatchCondition{Type: "ok", Step: &last_idx}})
+	}
 	return &StreamRequest{Type: "batch", Batch: batch}, nil
 }
 
