@@ -68,7 +68,7 @@ func WithProxy(proxy string) Option {
 
 func WithSchemaDb(schemaDb bool) Option {
 	return option(func(o *config) error {
-		if o.tls != nil {
+		if o.schemaDb != nil {
 			return fmt.Errorf("schemaDb already set")
 		}
 		o.schemaDb = &schemaDb
