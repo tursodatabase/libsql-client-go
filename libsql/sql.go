@@ -17,6 +17,7 @@ type config struct {
 	authToken *string
 	tls       *bool
 	proxy     *string
+	schemaDb  *bool
 }
 
 type Option interface {
@@ -61,6 +62,16 @@ func WithProxy(proxy string) Option {
 			return fmt.Errorf("proxy must not be empty")
 		}
 		o.proxy = &proxy
+		return nil
+	})
+}
+
+func WithSchemaDb(schemaDb bool) Option {
+	return option(func(o *config) error {
+		if o.tls != nil {
+			return fmt.Errorf("schemaDb already set")
+		}
+		o.schemaDb = &schemaDb
 		return nil
 	})
 }
@@ -144,11 +155,16 @@ func (c config) connector(dbPath string) (driver.Connector, error) {
 		}
 	}
 
+	schemaDb := false
+	if c.schemaDb != nil {
+		schemaDb = *c.schemaDb
+	}
+
 	if u.Scheme == "wss" || u.Scheme == "ws" {
 		return wsConnector{url: u.String(), authToken: authToken}, nil
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return httpConnector{url: u.String(), authToken: authToken, host: host}, nil
+		return httpConnector{url: u.String(), authToken: authToken, host: host, schemaDb: schemaDb}, nil
 	}
 
 	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)
@@ -172,10 +188,11 @@ type httpConnector struct {
 	url       string
 	authToken string
 	host      string
+	schemaDb  bool
 }
 
 func (c httpConnector) Connect(_ctx context.Context) (driver.Conn, error) {
-	return http.Connect(c.url, c.authToken, c.host), nil
+	return http.Connect(c.url, c.authToken, c.host, c.schemaDb), nil
 }
 
 func (c httpConnector) Driver() driver.Driver {
@@ -324,7 +341,7 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 		return ws.Connect(u.String(), jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return http.Connect(u.String(), jwt, u.Host), nil
+		return http.Connect(u.String(), jwt, u.Host, false), nil
 	}
 
 	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)

@@ -36,8 +36,8 @@ func init() {
 	commitHash = "unknown"
 }
 
-func Connect(url, jwt, host string) driver.Conn {
-	return &hranaV2Conn{url, jwt, host, "", false, 0}
+func Connect(url, jwt, host string, schemaDb bool) driver.Conn {
+	return &hranaV2Conn{url, jwt, host, schemaDb, "", false, 0}
 }
 
 type hranaV2Stmt struct {
@@ -85,6 +85,7 @@ type hranaV2Conn struct {
 	url              string
 	jwt              string
 	host             string
+	schemaDb         bool
 	baton            string
 	streamClosed     bool
 	replicationIndex uint64
