@@ -205,7 +205,7 @@ func connect(url string, jwt string) (*websocketConn, error) {
 		return nil, err
 	}
 
-	c.SetReadLimit(1024 * 1024 * 10) // 10MB
+	c.SetReadLimit(1024 * 1024 * 16) // 16MB
 
 	err = wsjson.Write(ctx, c, map[string]interface{}{
 		"type": "hello",
