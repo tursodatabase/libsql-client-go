@@ -32,12 +32,15 @@ func ParseStatement(sql string) ([]string, []ParamsInfo, error) {
 }
 
 func ParseStatementAndArgs(sql string, args []driver.NamedValue) ([]string, []Params, error) {
+	stmts, _ := sqliteparserutils.SplitStatement(sql)
+
+	if len(args) == 0 {
+		return stmts, nil, nil
+	}
 	parameters, err := ConvertArgs(args)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	stmts, _ := sqliteparserutils.SplitStatement(sql)
 
 	stmtsParams := make([]Params, len(stmts))
 	totalParametersAlreadyUsed := 0

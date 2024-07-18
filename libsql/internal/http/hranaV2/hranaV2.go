@@ -293,7 +293,11 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 	}
 	msg := &hrana.PipelineRequest{}
 	if len(stmts) == 1 {
-		executeStream, err := hrana.ExecuteStream(stmts[0], params[0], wantRows)
+		var p *shared.Params
+		if len(params) > 0 {
+			p = &params[0]
+		}
+		executeStream, err := hrana.ExecuteStream(stmts[0], p, wantRows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 		}

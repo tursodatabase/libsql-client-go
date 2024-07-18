@@ -16,13 +16,15 @@ func CloseStream() StreamRequest {
 	return StreamRequest{Type: "close"}
 }
 
-func ExecuteStream(sql string, params shared.Params, wantRows bool) (*StreamRequest, error) {
+func ExecuteStream(sql string, params *shared.Params, wantRows bool) (*StreamRequest, error) {
 	stmt := &Stmt{
 		Sql:      &sql,
 		WantRows: wantRows,
 	}
-	if err := stmt.AddArgs(params); err != nil {
-		return nil, err
+	if params != nil {
+		if err := stmt.AddArgs(*params); err != nil {
+			return nil, err
+		}
 	}
 	return &StreamRequest{Type: "execute", Stmt: stmt}, nil
 }
@@ -40,14 +42,17 @@ func ExecuteStoredStream(sqlId int32, params shared.Params, wantRows bool) (*Str
 
 func BatchStream(sqls []string, params []shared.Params, wantRows bool, transactional bool) (*StreamRequest, error) {
 	batch := &Batch{}
+	addArgs := len(params) > 0
 	for idx, sql := range sqls {
 		s := sql
 		stmt := &Stmt{
 			Sql:      &s,
 			WantRows: wantRows,
 		}
-		if err := stmt.AddArgs(params[idx]); err != nil {
-			return nil, err
+		if addArgs {
+			if err := stmt.AddArgs(params[idx]); err != nil {
+				return nil, err
+			}
 		}
 		var condition *BatchCondition
 		if transactional {
