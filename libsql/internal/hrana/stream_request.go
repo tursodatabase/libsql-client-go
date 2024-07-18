@@ -41,7 +41,11 @@ func ExecuteStoredStream(sqlId int32, params shared.Params, wantRows bool) (*Str
 }
 
 func BatchStream(sqls []string, params []shared.Params, wantRows bool, transactional bool) (*StreamRequest, error) {
-	batch := &Batch{}
+	size := len(sqls)
+	if transactional {
+		size += 1
+	}
+	batch := &Batch{Steps: make([]BatchStep, 0, size)}
 	addArgs := len(params) > 0
 	for idx, sql := range sqls {
 		s := sql
