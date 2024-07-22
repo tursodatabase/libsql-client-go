@@ -477,7 +477,7 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 	}
 }
 
-func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
+func (h *hranaV2Conn) closeStream() {
 	if h.baton != "" {
 		go func(baton, url, jwt, host string) {
 			msg := hrana.PipelineRequest{Baton: baton}
@@ -486,5 +486,9 @@ func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
 		}(h.baton, h.url, h.jwt, h.host)
 		h.baton = ""
 	}
+}
+
+func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
+	h.closeStream()
 	return nil
 }
