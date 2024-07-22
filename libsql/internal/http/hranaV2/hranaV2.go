@@ -286,6 +286,23 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	return result, false, nil
 }
 
+func (h *hranaV2Conn) executeMsg(ctx context.Context, msg *hrana.PipelineRequest) (*hrana.PipelineResponse, error) {
+	result, err := h.sendPipelineRequest(ctx, msg, false)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range result.Results {
+		if r.Error != nil {
+			return nil, errors.New(r.Error.Message)
+		}
+		if r.Response == nil {
+			return nil, errors.New("no response received")
+		}
+	}
+	return result, nil
+}
+
 func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driver.NamedValue, wantRows bool) (*hrana.PipelineResponse, error) {
 	stmts, params, err := shared.ParseStatementAndArgs(query, args)
 	if err != nil {
@@ -310,18 +327,11 @@ func (h *hranaV2Conn) executeStmt(ctx context.Context, query string, args []driv
 		msg.Add(*batchStream)
 	}
 
-	result, err := h.sendPipelineRequest(ctx, msg, false)
+	resp, err := h.executeMsg(ctx, msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute SQL: %s\n%w", query, err)
 	}
-
-	if result.Results[0].Error != nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, result.Results[0].Error.Message)
-	}
-	if result.Results[0].Response == nil {
-		return nil, fmt.Errorf("failed to execute SQL: %s\n%s", query, "no response received")
-	}
-	return result, nil
+	return resp, nil
 }
 
 func (h *hranaV2Conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
