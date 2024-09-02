@@ -14,7 +14,6 @@ import (
 	net_url "net/url"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/tursodatabase/libsql-client-go/libsql/internal/hrana"
 	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
@@ -236,8 +235,6 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	if err != nil {
 		return hrana.PipelineResponse{}, false, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
 	pipelineURL, err := net_url.JoinPath(url, "/v2/pipeline")
 	if err != nil {
 		return hrana.PipelineResponse{}, false, err
