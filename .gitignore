@@ -14,3 +14,13 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 test.db
+
+# env for integration tests
+.env
+
+# ide folders
+.idea
+.vscode
+
+# macos
+.DS_Store
