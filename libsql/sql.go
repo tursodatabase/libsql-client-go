@@ -280,6 +280,12 @@ func extractTls(query *url.Values, scheme string) (bool, error) {
 	}
 }
 
+func extractHost(query *url.Values) string {
+	host := query.Get("host")
+	query.Del("host")
+	return host
+}
+
 func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 	u, err := url.Parse(dbUrl)
 	if err != nil {
@@ -314,6 +320,11 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 		return nil, err
 	}
 
+	host := extractHost(&query)
+	if host == "" {
+		host = u.Host
+	}
+
 	for name := range query {
 		return nil, fmt.Errorf("unknown query parameter %#v", name)
 	}
@@ -341,7 +352,7 @@ func (d Driver) Open(dbUrl string) (driver.Conn, error) {
 		return ws.Connect(u.String(), jwt)
 	}
 	if u.Scheme == "https" || u.Scheme == "http" {
-		return http.Connect(u.String(), jwt, u.Host, false), nil
+		return http.Connect(u.String(), jwt, host, false), nil
 	}
 
 	return nil, fmt.Errorf("unsupported URL scheme: %s\nThis driver supports only URLs that start with libsql://, file://, https://, http://, wss:// and ws://", u.Scheme)
