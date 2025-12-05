@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tursodatabase/libsql-client-go/sqliteparserutils"
 	"io"
 	"net/http"
 	net_url "net/url"
 	"runtime/debug"
 	"strings"
+
+	"github.com/tursodatabase/libsql-client-go/sqliteparserutils"
 
 	"github.com/tursodatabase/libsql-client-go/libsql/internal/hrana"
 	"github.com/tursodatabase/libsql-client-go/libsql/internal/http/shared"
@@ -36,8 +37,8 @@ func init() {
 	commitHash = "unknown"
 }
 
-func Connect(url, jwt, host string, schemaDb bool) driver.Conn {
-	return &hranaV2Conn{url, jwt, host, schemaDb, "", false, 0}
+func Connect(url, jwt, host string, schemaDb bool, encryptionKey string) driver.Conn {
+	return &hranaV2Conn{url, jwt, host, schemaDb, encryptionKey, "", false, 0}
 }
 
 type hranaV2Stmt struct {
@@ -82,13 +83,14 @@ func (s *hranaV2Stmt) QueryContext(ctx context.Context, args []driver.NamedValue
 }
 
 type hranaV2Conn struct {
-	url              string
-	jwt              string
-	host             string
-	schemaDb         bool
-	baton            string
-	streamClosed     bool
-	replicationIndex uint64
+	url                 string
+	jwt                 string
+	host                string
+	schemaDb            bool
+	remoteEncryptionKey string
+	baton               string
+	streamClosed        bool
+	replicationIndex    uint64
 }
 
 func (h *hranaV2Conn) Ping() error {
@@ -121,11 +123,11 @@ func (h *hranaV2Conn) PrepareContext(ctx context.Context, query string) (driver.
 
 func (h *hranaV2Conn) Close() error {
 	if h.baton != "" {
-		go func(baton, url, jwt, host string) {
+		go func(baton, url, jwt, host, encryptionKey string) {
 			msg := hrana.PipelineRequest{Baton: baton}
 			msg.Add(hrana.CloseStream())
-			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host)
-		}(h.baton, h.url, h.jwt, h.host)
+			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host, encryptionKey)
+		}(h.baton, h.url, h.jwt, h.host, h.remoteEncryptionKey)
 	}
 	return nil
 }
@@ -173,7 +175,7 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if h.replicationIndex > 0 {
 		addReplicationIndex(msg, h.replicationIndex)
 	}
-	result, streamClosed, err := sendPipelineRequest(ctx, msg, h.url, h.jwt, h.host)
+	result, streamClosed, err := sendPipelineRequest(ctx, msg, h.url, h.jwt, h.host, h.remoteEncryptionKey)
 	if streamClosed {
 		h.streamClosed = true
 	}
@@ -230,7 +232,7 @@ func getReplicationIndex(response *hrana.PipelineResponse) uint64 {
 	return replicationIndex
 }
 
-func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url string, jwt string, host string) (result hrana.PipelineResponse, streamClosed bool, err error) {
+func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url string, jwt string, host string, remoteEncryptionKey string) (result hrana.PipelineResponse, streamClosed bool, err error) {
 	reqBody, err := json.Marshal(msg)
 	if err != nil {
 		return hrana.PipelineResponse{}, false, err
@@ -247,6 +249,10 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 		req.Header.Set("Authorization", "Bearer "+jwt)
 	}
 	req.Header.Set("x-libsql-client-version", "libsql-remote-go-"+commitHash)
+	if remoteEncryptionKey != "" {
+		req.Header.Set("x-turso-encryption-key", remoteEncryptionKey)
+	}
+
 	req.Host = host
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -591,11 +597,11 @@ func (h *hranaV2Conn) QueryContext(ctx context.Context, query string, args []dri
 
 func (h *hranaV2Conn) closeStream() {
 	if h.baton != "" {
-		go func(baton, url, jwt, host string) {
+		go func(baton, url, jwt, host, encryptionKey string) {
 			msg := hrana.PipelineRequest{Baton: baton}
 			msg.Add(hrana.CloseStream())
-			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host)
-		}(h.baton, h.url, h.jwt, h.host)
+			_, _, _ = sendPipelineRequest(context.Background(), &msg, url, jwt, host, encryptionKey)
+		}(h.baton, h.url, h.jwt, h.host, h.remoteEncryptionKey)
 		h.baton = ""
 	}
 }
