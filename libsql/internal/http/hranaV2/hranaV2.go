@@ -249,6 +249,7 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	if len(jwt) > 0 {
 		req.Header.Set("Authorization", "Bearer "+jwt)
 	}
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-libsql-client-version", "libsql-remote-go-"+commitHash)
 	if remoteEncryptionKey != "" {
 		req.Header.Set("x-turso-encryption-key", remoteEncryptionKey)
