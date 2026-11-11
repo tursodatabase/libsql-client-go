@@ -38,7 +38,7 @@ func init() {
 }
 
 func Connect(url, jwt, host string, schemaDb bool, encryptionKey string, requestHeaders map[string]string) driver.Conn {
-	return &hranaV2Conn{url, jwt, host, schemaDb, encryptionKey, requestHeaders, "", false, 0}
+	return &hranaV2Conn{url: url, jwt: jwt, host: host, schemaDb: schemaDb, remoteEncryptionKey: encryptionKey, requestHeaders: requestHeaders}
 }
 
 type hranaV2Stmt struct {
