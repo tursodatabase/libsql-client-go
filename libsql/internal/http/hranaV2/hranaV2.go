@@ -181,6 +181,9 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 		h.streamClosed = true
 	}
 	if err != nil {
+		if errors.Is(err, driver.ErrBadConn) {
+			h.baton = ""
+		}
 		return nil, err
 	}
 	h.baton = result.Baton
@@ -267,12 +270,16 @@ func sendPipelineRequest(ctx context.Context, msg *hrana.PipelineRequest, url st
 	if err != nil {
 		return hrana.PipelineResponse{}, false, err
 	}
+	if resp.StatusCode == http.StatusNotFound && msg.Baton != "" && strings.Contains(string(body), "stream not found") {
+		// The server found no stream for the baton, so nothing ran and the request is safe to retry on a new stream.
+		return hrana.PipelineResponse{}, true, fmt.Errorf("error code %d: %s\n%w", resp.StatusCode, string(body), driver.ErrBadConn)
+	}
 	if resp.StatusCode != http.StatusOK {
 		// We need to remember that the stream is closed so we don't try to send any more requests using this connection.
 		var serverError struct {
 			Error string `json:"error"`
 		}
-		if err := json.Unmarshal(body, &serverError); err == nil {
+		if err := json.Unmarshal(body, &serverError); err == nil && serverError.Error != "" {
 			return hrana.PipelineResponse{}, true, fmt.Errorf("error code %d: %s", resp.StatusCode, serverError.Error)
 		}
 		var errResponse hrana.Error
