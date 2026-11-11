@@ -13,6 +13,7 @@ import (
 	net_url "net/url"
 	"runtime/debug"
 	"strings"
+	"unicode"
 
 	"github.com/tursodatabase/libsql-client-go/sqliteparserutils"
 
@@ -92,6 +93,8 @@ type hranaV2Conn struct {
 	baton               string
 	streamClosed        bool
 	replicationIndex    uint64
+	// closeOnReset is set once the stream ran anything but a plain read or write, or a request failed, so it may hold an open transaction or session settings.
+	closeOnReset bool
 }
 
 func (h *hranaV2Conn) Ping() error {
@@ -176,11 +179,15 @@ func (h *hranaV2Conn) sendPipelineRequest(ctx context.Context, msg *hrana.Pipeli
 	if h.replicationIndex > 0 {
 		addReplicationIndex(msg, h.replicationIndex)
 	}
+	if mayChangeSession(msg) {
+		h.closeOnReset = true
+	}
 	result, streamClosed, err := sendPipelineRequest(ctx, msg, h.url, h.jwt, h.host, h.remoteEncryptionKey, h.requestHeaders)
 	if streamClosed {
 		h.streamClosed = true
 	}
 	if err != nil {
+		h.closeOnReset = true
 		if errors.Is(err, driver.ErrBadConn) {
 			h.baton = ""
 		}
@@ -618,6 +625,68 @@ func (h *hranaV2Conn) closeStream() {
 }
 
 func (h *hranaV2Conn) ResetSession(ctx context.Context) error {
-	h.closeStream()
+	if h.closeOnReset {
+		h.closeStream()
+		h.closeOnReset = false
+	}
 	return nil
+}
+
+func mayChangeSession(msg *hrana.PipelineRequest) bool {
+	for _, r := range msg.Requests {
+		if r.Stmt != nil && !isPlainStatement(r.Stmt.Sql) {
+			return true
+		}
+		if r.Batch != nil {
+			for _, step := range r.Batch.Steps {
+				if !isPlainStatement(step.Stmt.Sql) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isPlainStatement(sql *string) bool {
+	if sql == nil {
+		return false
+	}
+	stmt := strings.ToLower(skipLeadingComments(*sql))
+	for _, keyword := range []string{"select", "insert", "update", "delete", "replace", "with", "values"} {
+		if strings.HasPrefix(stmt, keyword) && !startsWithIdentifierChar(stmt[len(keyword):]) {
+			return true
+		}
+	}
+	return false
+}
+
+func startsWithIdentifierChar(s string) bool {
+	if s == "" {
+		return false
+	}
+	c := s[0]
+	return c == '_' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c >= 0x80
+}
+
+func skipLeadingComments(stmt string) string {
+	for {
+		stmt = strings.TrimLeftFunc(stmt, unicode.IsSpace)
+		switch {
+		case strings.HasPrefix(stmt, "--"):
+			end := strings.IndexByte(stmt, '\n')
+			if end < 0 {
+				return ""
+			}
+			stmt = stmt[end+1:]
+		case strings.HasPrefix(stmt, "/*"):
+			end := strings.Index(stmt, "*/")
+			if end < 0 {
+				return ""
+			}
+			stmt = stmt[end+2:]
+		default:
+			return stmt
+		}
+	}
 }
